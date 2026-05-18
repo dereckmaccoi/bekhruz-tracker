@@ -35,7 +35,7 @@ export default function HistoryTable({ metrics, periods, allEntries, allTargets 
     const pcts = metrics.map(m => {
       const actual = getActual(period, m.id);
       const target = getTarget(period, m.id);
-      return weeklyPercent(actual, target, m.type === 'inverse');
+      return weeklyPercent(actual, target, !!m.is_inverse);
     }).filter(p => p !== null);
     if (pcts.length === 0) return null;
     return Math.round(pcts.reduce((a, b) => a + b, 0) / pcts.length);
@@ -117,8 +117,8 @@ export default function HistoryTable({ metrics, periods, allEntries, allTargets 
                   {metrics.map(m => {
                     const actual = getActual(period, m.id);
                     const target = getTarget(period, m.id);
-                    const pct = weeklyPercent(actual, target, m.type === 'inverse');
-                    const ck = colorKey(pct, m.type === 'inverse');
+                    const pct = weeklyPercent(actual, target, !!m.is_inverse);
+                    const ck = colorKey(pct, !!m.is_inverse);
                     const mc = COLOR_CLASSES[ck] || COLOR_CLASSES.gray;
                     return (
                       <td key={m.id} className="py-2 text-right px-2">

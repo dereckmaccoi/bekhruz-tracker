@@ -65,7 +65,7 @@ export default function DayChart({ metric, entries, period, weeklyTarget }) {
             const value = entryMap[key];
             const isFuture = d > today;
             const hasData = value !== undefined;
-            const color = getDayColor(value || 0, dt, metric?.type === 'inverse', isFuture, hasData);
+            const color = getDayColor(value || 0, dt, !!metric?.is_inverse, isFuture, hasData);
             const heightPct = hasData ? Math.min(100, ((value || 0) / maxVal) * 100) : 0;
             const weekend = isWeekend(d);
             const todayKey = today.toISOString().slice(0, 10);

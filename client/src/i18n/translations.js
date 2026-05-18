@@ -54,7 +54,7 @@ export const translations = {
     behindAlert: '{n} {metric} behind pace. {days} day{s} left.',
     readOnly: 'read only',
     colMetric: 'Metric',
-    colWeeklyTarget: 'Weekly target',
+    colWeeklyTarget: 'Target',
     colDailyEquiv: 'Daily equiv',
     colType: 'Type',
 
@@ -130,7 +130,7 @@ export const translations = {
     behindAlert: '{n} {metric} отстаёт. Осталось {days} дн.',
     readOnly: 'просмотр',
     colMetric: 'Метрика',
-    colWeeklyTarget: 'Цель/неделю',
+    colWeeklyTarget: 'Цель',
     colDailyEquiv: 'Цель/день',
     colType: 'Тип',
 
@@ -202,7 +202,7 @@ export const translations = {
     behindAlert: "{n} {metric} orqada. {days} kun qoldi.",
     readOnly: "faqat ko'rish",
     colMetric: "Ko'rsatkich",
-    colWeeklyTarget: 'Haftalik maqsad',
+    colWeeklyTarget: 'Maqsad',
     colDailyEquiv: 'Kunlik ekv.',
     colType: 'Turi',
 

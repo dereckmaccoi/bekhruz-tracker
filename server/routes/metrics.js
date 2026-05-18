@@ -18,22 +18,28 @@ router.get('/', async (req, res) => {
 });
 
 router.post('/', async (req, res) => {
-  const { id, project_id, name, type, sort_order } = req.body;
+  const { id, project_id, name, type, is_inverse, sort_order } = req.body;
   try {
     const { rows } = await query(
-      'INSERT INTO metrics (id, project_id, name, type, sort_order) VALUES ($1,$2,$3,$4,$5) RETURNING *',
-      [id, project_id, name, type, sort_order]
+      'INSERT INTO metrics (id, project_id, name, type, is_inverse, sort_order) VALUES ($1,$2,$3,$4,$5,$6) RETURNING *',
+      [id, project_id, name, type ?? 'regular', is_inverse ?? false, sort_order]
     );
     res.status(201).json(rows[0]);
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 router.put('/:id', async (req, res) => {
-  const { name, type, sort_order } = req.body;
+  const { name, type, is_inverse, sort_order } = req.body;
   try {
     const { rows } = await query(
-      'UPDATE metrics SET name=COALESCE($1,name), type=COALESCE($2,type), sort_order=COALESCE($3,sort_order) WHERE id=$4 RETURNING *',
-      [name, type, sort_order, req.params.id]
+      `UPDATE metrics
+       SET name       = COALESCE($1, name),
+           type       = COALESCE($2, type),
+           is_inverse = COALESCE($3, is_inverse),
+           sort_order = COALESCE($4, sort_order)
+       WHERE id = $5
+       RETURNING *`,
+      [name, type, is_inverse, sort_order, req.params.id]
     );
     res.json(rows[0]);
   } catch (e) { res.status(500).json({ error: e.message }); }

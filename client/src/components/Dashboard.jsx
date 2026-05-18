@@ -124,7 +124,7 @@ function ProjectCard({ project, period, data, periods = [] }) {
     .map(m => {
       const tgt = targetMap[m.id];
       if (!tgt) return null;
-      return pacePercent(actualMap[m.id] || 0, tgt.weekly_target, period, m.type === 'inverse');
+      return pacePercent(actualMap[m.id] || 0, tgt.weekly_target, period, !!m.is_inverse);
     })
     .filter(p => p !== null);
 
@@ -248,7 +248,7 @@ function ProjectCard({ project, period, data, periods = [] }) {
         {/* Funnel conversion rates */}
         {hasTargets && (() => {
           const fm = [...metrics]
-            .filter(m => m.type !== 'inverse')
+            .filter(m => !m.is_inverse)
             .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
           const rates = fm.slice(0, -1).map((mA, i) => {
             const mB  = fm[i + 1];
@@ -277,7 +277,7 @@ function ProjectCard({ project, period, data, periods = [] }) {
               const actual = actualMap[m.id] || 0;
               const tgt = targetMap[m.id];
               const mPct = tgt
-                ? pacePercent(actual, tgt.weekly_target, period, m.type === 'inverse')
+                ? pacePercent(actual, tgt.weekly_target, period, !!m.is_inverse)
                 : null;
               const mColor = colorKey(mPct, false);
               const mC = COLOR_CLASSES[mColor] || COLOR_CLASSES.gray;
@@ -286,7 +286,7 @@ function ProjectCard({ project, period, data, periods = [] }) {
               const remainingDays = todayStr <= periodEnd
                 ? Math.max(1, Math.round((new Date(periodEnd) - new Date(todayStr)) / 86400000) + 1)
                 : 1;
-              const needPerDay = tgt && actual < tgt.weekly_target && m.type !== 'inverse'
+              const needPerDay = tgt && actual < tgt.weekly_target && !m.is_inverse
                 ? Math.ceil((tgt.weekly_target - actual) / remainingDays)
                 : null;
               const metricEntries = entries.filter(e => e.metric_id === m.id);
@@ -363,7 +363,7 @@ export default function Dashboard() {
     const pcts = metrics.map(m => {
       const tgt = targetMap[m.id];
       if (!tgt) return null;
-      return pacePercent(actualMap[m.id] || 0, tgt.weekly_target, pd.period, m.type === 'inverse');
+      return pacePercent(actualMap[m.id] || 0, tgt.weekly_target, pd.period, !!m.is_inverse);
     }).filter(p => p !== null);
     const avg = pcts.length ? Math.round(pcts.reduce((a, b) => a + b, 0) / pcts.length) : null;
     if (avg !== null && avg < 70) behindCount++;

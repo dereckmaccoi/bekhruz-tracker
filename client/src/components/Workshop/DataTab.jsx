@@ -263,7 +263,7 @@ export default function DataTab({ periods, activePeriod, onSaved, selectedProjec
                         <div className="uppercase tracking-wide">{m.name}</div>
                         {dt > 0 && (
                           <div className="text-[10px] font-normal text-stone-400 normal-case tracking-normal">
-                            {m.type === 'inverse' ? '≤' : '~'}{formatNum(dt)}/day
+                            {!!m.is_inverse ? '≤' : '~'}{formatNum(dt)}/day
                           </div>
                         )}
                       </th>
@@ -309,7 +309,7 @@ export default function DataTab({ periods, activePeriod, onSaved, selectedProjec
                         const tgt   = targetMap[m.id];
                         const dt    = tgt && displayPeriod ? dailyTarget(tgt.weekly_target, displayPeriod) : 0;
                         const val   = getVal(date, m.id);
-                        const cs    = (!isFuture && val !== '') ? cellStyle(val, dt, m.type === 'inverse') : null;
+                        const cs    = (!isFuture && val !== '') ? cellStyle(val, dt, !!m.is_inverse) : null;
                         const dirty = edits[date]?.[m.id] !== undefined;
 
                         return (
@@ -353,7 +353,7 @@ export default function DataTab({ periods, activePeriod, onSaved, selectedProjec
                     const tgt   = targetMap[m.id];
                     const wt    = tgt?.weekly_target ?? 0;
                     const total = weekTotals[i];
-                    const good  = wt === 0 ? null : m.type === 'inverse' ? total <= wt : total >= wt;
+                    const good  = wt === 0 ? null : !!m.is_inverse ? total <= wt : total >= wt;
                     return (
                       <td key={m.id} className="py-2.5 px-3 text-right">
                         <span className="text-sm font-bold"

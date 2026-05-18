@@ -83,7 +83,7 @@ function PeriodComparison({ metrics, periods, allEntries, allTargets, currentPer
                 const isCompleted = String(p.end_date).slice(0, 10) < today;
                 const actual      = getActual(p, m.id);
                 const wt          = getTarget(p, m.id);
-                const isInverse   = m.type === 'inverse';
+                const isInverse   = !!m.is_inverse;
 
                 // Compute period.days if not present
                 const pDays = p.days ?? (Math.round(
@@ -244,6 +244,7 @@ export default function ProjectPage() {
     campaignEntries,
     tab,
     numSiblingWeeks,
+    siblingWeeks,  // for auto-rollover from completed periods
   );
 
   if (!period && projectPeriods.length === 0 && !loading) {
@@ -345,7 +346,7 @@ export default function ProjectPage() {
       const thisWeekPct = pace[m.id]?.pct;
       const prevActual  = prevActualMap[m.id] || 0;
       const prevTarget  = targets.find(t => t.metric_id === m.id)?.weekly_target || 0;
-      const prevPct     = weeklyPercent(prevActual, prevTarget, m.type === 'inverse');
+      const prevPct     = weeklyPercent(prevActual, prevTarget, !!m.is_inverse);
       if (thisWeekPct !== null && thisWeekPct !== undefined && prevPct !== null) {
         trendMap[m.id] = thisWeekPct - prevPct;
       }
@@ -354,7 +355,7 @@ export default function ProjectPage() {
 
   // Funnel conversion rates: adjacent non-inverse metrics sorted by sort_order
   const funnelMetrics = [...metrics]
-    .filter(m => m.type !== 'inverse')
+    .filter(m => !m.is_inverse)
     .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
   // Only show CVR for pairs where downstream ≤ upstream (genuine funnel conversion).
   // Skips pairs where the downstream metric exceeds upstream — those indicate

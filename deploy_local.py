@@ -56,6 +56,17 @@ def main():
     run(client, f'tar -xzf /tmp/tracker_deploy.tar.gz -C {REMOTE_DIR}')
     run(client, 'rm /tmp/tracker_deploy.tar.gz')
 
+    print('\n[migrate] Running DB migrations...')
+    migrations = [
+        "ALTER TABLE metrics ADD COLUMN IF NOT EXISTS is_inverse BOOLEAN DEFAULT FALSE",
+        "DO $$ BEGIN IF EXISTS (SELECT 1 FROM pg_constraint WHERE conname='metrics_type_check') THEN ALTER TABLE metrics DROP CONSTRAINT metrics_type_check; END IF; END $$",
+        "UPDATE metrics SET type = 'regular' WHERE type IN ('weekly', 'daily', 'inverse')",
+        "UPDATE metrics SET is_inverse = TRUE WHERE type = 'inverse'",
+        "ALTER TABLE metrics ADD CONSTRAINT metrics_type_check CHECK (type IN ('regular', 'campaign'))",
+    ]
+    for sql in migrations:
+        run(client, f"sudo -u postgres psql -d tracker -c \"{sql}\"", check=False)
+
     print('\n[restart] Restarting service...')
     run(client, 'systemctl restart bekhruz-tracker')
     run(client, 'systemctl is-active bekhruz-tracker', check=False)
