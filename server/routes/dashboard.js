@@ -32,7 +32,7 @@ router.get('/:id', async (req, res) => {
     const [project, metrics, periods] = await Promise.all([
       query('SELECT * FROM projects WHERE id=$1', [id]),
       query('SELECT * FROM metrics WHERE project_id=$1 ORDER BY sort_order', [id]),
-      query('SELECT * FROM periods WHERE project_id=$1 ORDER BY start_date', [id]),
+      query('SELECT * FROM periods WHERE (project_id=$1 OR project_id IS NULL) ORDER BY start_date', [id]),
     ]);
     const metricIds = metrics.rows.map(m => `'${m.id}'`).join(',');
 

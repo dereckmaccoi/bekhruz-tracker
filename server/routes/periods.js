@@ -9,7 +9,7 @@ router.get('/', async (req, res) => {
     const params = [];
     if (req.query.project_id) {
       params.push(req.query.project_id);
-      sql = `SELECT * FROM periods WHERE project_id=$1 ORDER BY start_date`;
+      sql = `SELECT * FROM periods WHERE (project_id=$1 OR project_id IS NULL) ORDER BY start_date`;
     } else {
       sql = 'SELECT * FROM periods ORDER BY start_date';
     }
