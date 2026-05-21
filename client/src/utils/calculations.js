@@ -32,6 +32,7 @@ export function pacePercent(actual, weeklyTarget, period, isInverse) {
 // Weekly % (actual vs full weekly target — used in history)
 export function weeklyPercent(actual, weeklyTarget, isInverse) {
   if (!weeklyTarget) return null;
+  if (isInverse && !actual) return null;
   return isInverse
     ? Math.round((weeklyTarget / actual) * 100)
     : Math.round((actual / weeklyTarget) * 100);
