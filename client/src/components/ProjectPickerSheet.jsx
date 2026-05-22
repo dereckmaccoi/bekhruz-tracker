@@ -21,7 +21,7 @@ export default function ProjectPickerSheet({ open, onClose, projects }) {
     <>
       {/* Backdrop */}
       <div
-        className={`fixed inset-0 z-40 bg-black/40 transition-opacity duration-200 ${
+        className={`fixed inset-0 z-50 bg-black/40 transition-opacity duration-200 ${
           open ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
         }`}
         onClick={onClose}
@@ -29,7 +29,7 @@ export default function ProjectPickerSheet({ open, onClose, projects }) {
 
       {/* Sheet */}
       <div
-        className={`fixed bottom-0 left-0 right-0 z-50 bg-white rounded-t-2xl shadow-xl transition-transform duration-200 ${
+        className={`fixed bottom-0 left-0 right-0 z-60 bg-white rounded-t-2xl shadow-xl transition-transform duration-200 ${
           open ? 'translate-y-0' : 'translate-y-full'
         }`}
         style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
@@ -46,6 +46,7 @@ export default function ProjectPickerSheet({ open, onClose, projects }) {
           <div className="space-y-1">
             {projects.map(p => (
               <button
+                type="button"
                 key={p.id}
                 onClick={() => pick(p.id)}
                 className="w-full flex items-center gap-3 px-3 py-3.5 rounded-xl hover:bg-stone-50 active:bg-stone-100 transition-colors text-left"

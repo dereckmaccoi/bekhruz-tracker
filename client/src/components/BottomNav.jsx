@@ -1,5 +1,5 @@
 import { NavLink, useLocation } from 'react-router-dom';
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import ProjectPickerSheet from './ProjectPickerSheet.jsx';
 
 const PROJECTS = [
@@ -18,6 +18,7 @@ function tabCls(active) {
 export default function BottomNav() {
   const location = useLocation();
   const [sheetOpen, setSheetOpen] = useState(false);
+  const handleSheetClose = useCallback(() => setSheetOpen(false), []);
 
   const isProjectsActive = location.pathname.startsWith('/project/');
 
@@ -67,7 +68,7 @@ export default function BottomNav() {
 
       <ProjectPickerSheet
         open={sheetOpen}
-        onClose={() => setSheetOpen(false)}
+        onClose={handleSheetClose}
         projects={PROJECTS}
       />
     </>
