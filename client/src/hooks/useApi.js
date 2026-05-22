@@ -1,10 +1,21 @@
 const BASE = import.meta.env.VITE_API_URL || '/api';
 
+// Module-level: set by TelegramAuthGate after successful validation
+let telegramInitData = null;
+
+export function setInitData(data) {
+  telegramInitData = data;
+}
+
 async function request(path, options = {}) {
+  const { body: rawBody, ...rest } = options;
+  const headers = { 'Content-Type': 'application/json' };
+  if (telegramInitData) headers['x-telegram-init-data'] = telegramInitData;
+
   const res = await fetch(`${BASE}${path}`, {
-    headers: { 'Content-Type': 'application/json' },
-    ...options,
-    body: options.body ? JSON.stringify(options.body) : undefined,
+    ...rest,
+    headers,
+    body: rawBody ? JSON.stringify(rawBody) : undefined,
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: res.statusText }));

@@ -12,6 +12,7 @@ import { detectActivePeriod } from './utils/calculations.js';
 import { LangProvider, useLang } from './i18n/LangContext.jsx';
 import { ProjectsProvider } from './context/ProjectsContext.jsx';
 import PinGate from './components/PinGate.jsx';
+import TelegramAuthGate from './components/TelegramAuthGate.jsx';
 
 function AppInner() {
   const { t } = useLang();
@@ -79,14 +80,16 @@ function AppInner() {
 
 export default function App() {
   return (
-    <LangProvider>
-      <PinGate>
-        <ProjectsProvider>
-          <BrowserRouter>
-            <AppInner />
-          </BrowserRouter>
-        </ProjectsProvider>
-      </PinGate>
-    </LangProvider>
+    <TelegramAuthGate>
+      <LangProvider>
+        <PinGate>
+          <ProjectsProvider>
+            <BrowserRouter>
+              <AppInner />
+            </BrowserRouter>
+          </ProjectsProvider>
+        </PinGate>
+      </LangProvider>
+    </TelegramAuthGate>
   );
 }
