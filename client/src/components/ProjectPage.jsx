@@ -49,7 +49,7 @@ function PeriodComparison({ metrics, periods, allEntries, allTargets, currentPer
   };
 
   return (
-    <div className="bg-white border border-stone-200 rounded-xl p-4 overflow-x-auto">
+    <div className="bg-white border border-stone-200 rounded-xl p-4 overflow-x-auto" style={{ WebkitOverflowScrolling: 'touch' }}>
       <h2 className="text-sm font-semibold text-stone-500 uppercase tracking-wide mb-4">
         Period Comparison
       </h2>
@@ -608,41 +608,33 @@ export default function ProjectPage() {
             {t('editInWorkshop')}
           </button>
         </div>
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-stone-200">
-              <th className="text-left py-1.5 text-stone-400 font-medium">{t('colMetric')}</th>
-              <th className="text-right py-1.5 text-stone-400 font-medium">{t('colWeeklyTarget')}</th>
-              <th className="text-right py-1.5 text-stone-400 font-medium">{t('colDailyEquiv')}</th>
-              <th className="text-right py-1.5 text-stone-400 font-medium">{t('colType')}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {metrics.map(m => {
-              const tgt = targets.find(tgt => tgt.metric_id === m.id)
-                        || (period?.parent_id
-                            ? targets.find(t => t.period_id === period.parent_id && t.metric_id === m.id)
-                            : null);
-              const wt = tgt?.weekly_target || 0;
-              const dtPeriod = (m.type === 'campaign' || tab === 'campaign')
-                ? (campaignPeriod ?? period)
-                : period;
-              const dt = dtPeriod ? dailyTarget(wt, dtPeriod) : 0;
-              return (
-                <tr key={m.id} className="border-b border-stone-100">
-                  <td className="py-2 text-stone-700">{m.name}</td>
-                  <td className="py-2 text-right text-stone-700">{formatNum(wt)}</td>
-                  <td className="py-2 text-right text-stone-500">{formatNum(dt)}</td>
-                  <td className="py-2 text-right">
-                    <span className="text-xs px-2 py-0.5 rounded bg-stone-100 text-stone-500 capitalize">
-                      {m.type}
-                    </span>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+        <div className="divide-y divide-stone-100">
+          {metrics.map(m => {
+            const tgt = targets.find(tgt => tgt.metric_id === m.id)
+                      || (period?.parent_id
+                          ? targets.find(t => t.period_id === period.parent_id && t.metric_id === m.id)
+                          : null);
+            const wt = tgt?.weekly_target || 0;
+            const dtPeriod = (m.type === 'campaign' || tab === 'campaign')
+              ? (campaignPeriod ?? period)
+              : period;
+            const dt = dtPeriod ? dailyTarget(wt, dtPeriod) : 0;
+            return (
+              <div key={m.id} className="flex items-center justify-between gap-3 py-2.5">
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="text-sm text-stone-700 font-medium truncate">{m.name}</span>
+                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-stone-100 text-stone-400 capitalize shrink-0">
+                    {m.type}
+                  </span>
+                </div>
+                <div className="text-right shrink-0">
+                  <div className="text-sm font-semibold text-stone-800">{formatNum(wt)}</div>
+                  <div className="text-[11px] text-stone-400">{formatNum(dt)}/day</div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
       </div>
 
       {/* History */}
