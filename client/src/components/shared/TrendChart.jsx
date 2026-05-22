@@ -108,7 +108,7 @@ export default function TrendChart({ metrics, periods, allEntries, allTargets, c
   return (
     <div className="bg-white border border-stone-200 rounded-xl p-4">
       <h2 className="text-sm font-semibold text-stone-500 uppercase tracking-wide mb-3">
-        12-week trend
+        {periods.length}-period trend
       </h2>
       <svg
         viewBox={`0 0 ${W} ${H}`}
