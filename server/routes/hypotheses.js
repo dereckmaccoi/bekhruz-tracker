@@ -9,8 +9,8 @@ router.get('/', async (req, res) => {
   try {
     const conditions = [];
     const values = [];
-    if (project_id) { conditions.push(`project_id = $${values.length + 1}`); values.push(project_id); }
-    if (status)     { conditions.push(`status = $${values.length + 1}`);     values.push(status); }
+    if (project_id) { values.push(project_id); conditions.push(`project_id = $${values.length}`); }
+    if (status)     { values.push(status);     conditions.push(`status = $${values.length}`); }
     const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
     const { rows } = await query(
       `SELECT * FROM hypotheses ${where} ORDER BY created_at DESC`,
@@ -78,7 +78,8 @@ router.put('/:id', async (req, res) => {
 // DELETE /api/hypotheses/:id
 router.delete('/:id', async (req, res) => {
   try {
-    await query('DELETE FROM hypotheses WHERE id = $1', [req.params.id]);
+    const { rowCount } = await query('DELETE FROM hypotheses WHERE id = $1', [req.params.id]);
+    if (rowCount === 0) return res.status(404).json({ error: 'not found' });
     res.status(204).end();
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
