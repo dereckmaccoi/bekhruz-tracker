@@ -36,6 +36,7 @@ export default function TargetsTab({
   const [confirmDelete, setConfirmDelete]       = useState(null);
   const [copySource, setCopySource]             = useState(null); // { period, targets: [] } | null
   const [copying, setCopying]                   = useState(false);
+  const [reloadCounter, setReloadCounter]       = useState(0);
 
   // Sync period list and default to the active week
   useEffect(() => {
@@ -78,6 +79,7 @@ export default function TargetsTab({
   // Load metrics + targets when project/period changes
   useEffect(() => {
     if (!selectedProject || !selectedPeriodId) return;
+    let cancelled = false;
     const selPeriod = periodList.find(p => p.id === selectedPeriodId);
     const parentId  = selPeriod?.parent_id || null;
 
@@ -155,12 +157,13 @@ export default function TargetsTab({
         const prev = idx > 0 ? sorted[idx - 1] : null;
         if (prev) {
           api.getTargets({ project_id: selectedProject, period_id: prev.id }).then(prevTargets => {
+            if (cancelled) return;
             if (prevTargets.length > 0) {
               setCopySource({ period: prev, targets: prevTargets });
             } else {
               setCopySource(null);
             }
-          }).catch(() => setCopySource(null));
+          }).catch(() => { if (!cancelled) setCopySource(null); });
         } else {
           setCopySource(null);
         }
@@ -168,7 +171,8 @@ export default function TargetsTab({
         setCopySource(null);
       }
     }).catch(e => setError(e.message));
-  }, [selectedProject, selectedPeriodId, periodList]);
+    return () => { cancelled = true; };
+  }, [selectedProject, selectedPeriodId, periodList, reloadCounter]);
 
   const handleTargetChange = (metricId, val) =>
     setTargets(t => ({ ...t, [metricId]: val }));
@@ -254,15 +258,8 @@ export default function TargetsTab({
           })
         )
       );
-      // Reload targets — once targets exist, copySource will be cleared by the effect
-      const [m, t] = await Promise.all([
-        api.getMetrics(selectedProject),
-        api.getTargets({ project_id: selectedProject, period_id: selectedPeriodId }),
-      ]);
-      const tMap = {};
-      t.forEach(tgt => { tMap[tgt.metric_id] = String(tgt.weekly_target); });
-      setTargets(tMap);
-      setCopySource(null);
+      // Trigger full effect re-run so all state (targets, types, inverses, campaignTotals) refreshes
+      setReloadCounter(c => c + 1);
     } catch (err) {
       setError('Failed to copy targets. Please try again.');
     } finally {
