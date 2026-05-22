@@ -157,6 +157,9 @@ function ProjectCard({ project, period, data, periods = [] }) {
       prevActualMap[e.metric_id] = (prevActualMap[e.metric_id] || 0) + Number(e.value);
     });
     // Prev period is always completed (it's in the past) — use weeklyPercent
+    // Note: uses current period's targets for prev period comparison.
+    // Produces correct deltas when targets are stable across periods (the common case).
+    // If per-period target overrides are used, deltas may be skewed.
     const prevPcts = metrics.map(m => {
       const tgt = targetMap[m.id];
       if (!tgt) return null;
@@ -486,7 +489,7 @@ export default function Dashboard() {
     if (remainingDays === 0) return;
     metrics.forEach(m => {
       if (m.is_inverse) return;
-      const tgt = targets.find(t => t.metric_id === m.id);
+      const tgt = resolveTarget(targets, m.id, pd.period);
       if (!tgt) return;
       const actual = actualMap[m.id] || 0;
       const pct = pacePercent(actual, tgt.weekly_target, pd.period, false);

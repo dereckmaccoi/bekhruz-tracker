@@ -68,7 +68,7 @@ export default function TrendChart({ metrics, periods, allEntries, allTargets, c
   const periodsWithData = periods.filter((_, i) =>
     seriesData.some(s => s.points[i]?.pct !== null)
   );
-  if (periodsWithData.length < 2) return null;
+  if (periodsWithData.length < 2 || periods.length < 2) return null;
 
   const n = periods.length;
 
