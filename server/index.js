@@ -11,6 +11,10 @@ import entriesRouter from './routes/entries.js';
 import dashboardRouter from './routes/dashboard.js';
 import hypothesesRouter from './routes/hypotheses.js';
 import { query } from './lib/db.js';
+import cron from 'node-cron';
+import { telegramAuthMiddleware } from './middleware/telegramAuth.js';
+import { setupWebhook, handleUpdate, sendToAll } from './bot.js';
+import { computeProjectStatuses, buildStatusMessage } from './lib/notifications.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -207,6 +211,15 @@ const PORT = process.env.PORT || 3001;
 app.use(cors());
 app.use(express.json());
 
+// ── Telegram auth ─────────────────────────────────────────────────────────────
+// Validate endpoint — lightweight ping to confirm initData is accepted
+app.post('/api/auth/validate', telegramAuthMiddleware, (req, res) => {
+  res.json({ ok: true, user: req.telegramUser });
+});
+
+// Apply auth middleware to all other /api routes
+app.use('/api', telegramAuthMiddleware);
+
 // ── API routes ────────────────────────────────────────────────────────────────
 app.use('/api/projects', projectsRouter);
 app.use('/api/periods', periodsRouter);
@@ -218,12 +231,65 @@ app.use('/api/hypotheses', hypothesesRouter);
 app.use('/api/project', dashboardRouter);
 app.get('/api/health', (_, res) => res.json({ ok: true }));
 
+// ── Telegram bot webhook ──────────────────────────────────────────────────────
+app.post('/bot/webhook', (req, res) => {
+  if (req.query.secret !== process.env.TELEGRAM_WEBHOOK_SECRET) {
+    return res.status(403).json({ error: 'forbidden' });
+  }
+  handleUpdate(req.body);
+  res.sendStatus(200);
+});
+
 // ── Serve React build (production) ───────────────────────────────────────────
 const clientDist = path.join(__dirname, '../client/dist');
 app.use(express.static(clientDist));
 app.get('*', (_, res) => res.sendFile(path.join(clientDist, 'index.html')));
 
 // ── Listen on all interfaces (required for Railway / containers) ──────────────
-app.listen(PORT, '0.0.0.0', () => {
+app.listen(PORT, '0.0.0.0', async () => {
   console.log(`Bekhruz Tracker running on port ${PORT}`);
+
+  // Register Telegram webhook after server is listening
+  await setupWebhook();
+
+  // ── Cron: Morning summary — 9:00 AM Tashkent (04:00 UTC) ───────────────
+  cron.schedule('0 4 * * *', async () => {
+    try {
+      const statuses = await computeProjectStatuses();
+      const msg      = buildStatusMessage(statuses);
+      const allOk    = statuses.every(s => s.avgPace === null || s.avgPace >= 70);
+      await sendToAll(msg + (allOk ? '\n\n🟢 All on track' : ''));
+    } catch (e) {
+      console.error('Morning cron error:', e.message);
+    }
+  });
+
+  // ── Cron: Afternoon nudge — 3:00 PM Tashkent (10:00 UTC) ───────────────
+  cron.schedule('0 10 * * *', async () => {
+    try {
+      const today              = new Date().toISOString().slice(0, 10);
+      const { rows: projects } = await query('SELECT id FROM projects');
+      const { rows: entered  } = await query(
+        `SELECT DISTINCT m.project_id
+         FROM daily_entries e
+         JOIN metrics m ON m.id = e.metric_id
+         WHERE e.date = $1`,
+        [today]
+      );
+      const enteredIds = new Set(entered.map(r => r.project_id));
+      const hasGap     = projects.some(p => !enteredIds.has(p.id));
+
+      if (hasGap) {
+        await sendToAll("⏰ Don't forget to log today's numbers", {
+          reply_markup: {
+            inline_keyboard: [[
+              { text: '📊 Open Tracker', web_app: { url: process.env.BASE_URL } },
+            ]],
+          },
+        });
+      }
+    } catch (e) {
+      console.error('Afternoon cron error:', e.message);
+    }
+  });
 });
