@@ -76,7 +76,7 @@ export default function HadiPanel({ initial, onSave, onDelete, onClose }) {
         </div>
 
         {/* form body */}
-        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
+        <form id="hadi-form" onSubmit={handleSubmit} className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
 
           {/* H — Hypothesis */}
           <div>
@@ -189,7 +189,6 @@ export default function HadiPanel({ initial, onSave, onDelete, onClose }) {
           <button
             type="submit"
             form="hadi-form"
-            onClick={handleSubmit}
             disabled={saving}
             className="flex-1 bg-stone-900 text-white text-sm font-medium py-2.5 rounded-lg hover:bg-stone-800 disabled:opacity-50 transition-all"
           >
