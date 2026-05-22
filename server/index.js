@@ -233,7 +233,8 @@ app.get('/api/health', (_, res) => res.json({ ok: true }));
 
 // ── Telegram bot webhook ──────────────────────────────────────────────────────
 app.post('/bot/webhook', (req, res) => {
-  if (req.query.secret !== process.env.TELEGRAM_WEBHOOK_SECRET) {
+  const expectedSecret = process.env.TELEGRAM_WEBHOOK_SECRET;
+  if (!expectedSecret || req.query.secret !== expectedSecret) {
     return res.status(403).json({ error: 'forbidden' });
   }
   handleUpdate(req.body);
