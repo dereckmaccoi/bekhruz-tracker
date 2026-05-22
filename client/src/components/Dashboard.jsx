@@ -83,6 +83,28 @@ function CardSkeleton({ color }) {
   );
 }
 
+const LANGS = ['en', 'ru', 'uz'];
+
+function LangSwitcher() {
+  const { lang, setLang } = useLang();
+  return (
+    <div className="flex items-center gap-1 bg-stone-100 p-1 rounded-lg shrink-0">
+      {LANGS.map(l => (
+        <button
+          key={l}
+          type="button"
+          onClick={() => setLang(l)}
+          className={`px-2.5 py-1 text-[11px] rounded-md font-bold transition-all uppercase tracking-wider ${
+            lang === l ? 'bg-white text-stone-900 shadow-sm' : 'text-stone-400 hover:text-stone-700'
+          }`}
+        >
+          {l}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 function ProjectCard({ project, period, data, periods = [] }) {
   const navigate = useNavigate();
   const { t } = useLang();
@@ -512,9 +534,12 @@ export default function Dashboard() {
       <div className="max-w-4xl mx-auto px-6 py-8">
 
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-2xl font-bold text-stone-900 tracking-tight">{t('dashboardTitle')}</h1>
-          <p className="text-sm text-stone-400 mt-1 capitalize">{today}</p>
+        <div className="mb-8 flex items-start justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-bold text-stone-900 tracking-tight">{t('dashboardTitle')}</h1>
+            <p className="text-sm text-stone-400 mt-1 capitalize">{today}</p>
+          </div>
+          <LangSwitcher />
         </div>
 
         {/* Summary bar */}
