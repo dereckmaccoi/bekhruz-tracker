@@ -72,6 +72,67 @@ function StatusDropdown({ value, onChange }) {
   );
 }
 
+function HadiCard({ row, onEdit, onStatusChange }) {
+  return (
+    <div className="px-4 py-3.5 border-b border-stone-50 last:border-0">
+      {/* Top row: project · status badge · deadline */}
+      <div className="flex items-center gap-2 mb-2 flex-wrap">
+        {row.project_id && (
+          <span className="flex items-center gap-1.5 text-xs text-stone-500">
+            <span
+              className="w-2 h-2 rounded-full shrink-0"
+              style={{ backgroundColor: PROJECT_COLORS[row.project_id] || '#999' }}
+            />
+            {PROJECT_NAMES[row.project_id] || row.project_id}
+          </span>
+        )}
+        <StatusDropdown
+          value={row.status}
+          onChange={val => onStatusChange(row.id, val)}
+        />
+        {row.insight_deadline && (
+          <span className="text-xs text-stone-400 ml-auto">
+            {new Date(row.insight_deadline).toLocaleDateString('en-GB', {
+              day: '2-digit',
+              month: 'short',
+            })}
+          </span>
+        )}
+      </div>
+
+      {/* Hypothesis text */}
+      <div className="font-medium text-stone-900 text-sm leading-snug line-clamp-3">
+        {row.hypothesis}
+      </div>
+
+      {/* Insight snippet */}
+      {row.insight && (
+        <p className="text-xs text-stone-400 mt-1 line-clamp-2">{row.insight}</p>
+      )}
+
+      {/* Responsible + edit button */}
+      <div className="flex items-center justify-between gap-2 mt-2">
+        {row.responsible ? (
+          <span className="text-xs text-stone-400">👤 {row.responsible}</span>
+        ) : (
+          <span />
+        )}
+        <button
+          type="button"
+          onClick={() => onEdit(row)}
+          className="text-stone-400 hover:text-stone-700 p-1 rounded transition-colors"
+          title="Edit"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+              d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125" />
+          </svg>
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export default function HadiPage() {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -282,73 +343,17 @@ export default function HadiPage() {
                 <span className="text-xs text-stone-400 bg-stone-100 px-2 py-0.5 rounded-full">{items.length}</span>
               </div>
 
-              {/* rows */}
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-stone-50">
-                    <th className="text-left px-5 py-2.5 text-xs font-semibold text-stone-400 w-[35%]">Hypothesis</th>
-                    <th className="text-left px-3 py-2.5 text-xs font-semibold text-stone-400 w-[12%]">Project</th>
-                    <th className="text-left px-3 py-2.5 text-xs font-semibold text-stone-400 w-[12%]">Deadline</th>
-                    <th className="text-left px-3 py-2.5 text-xs font-semibold text-stone-400 w-[18%]">Insight</th>
-                    <th className="text-left px-3 py-2.5 text-xs font-semibold text-stone-400 w-[13%]">Status</th>
-                    <th className="px-3 py-2.5 w-[10%]" />
-                  </tr>
-                </thead>
-                <tbody>
-                  {items.map(row => (
-                    <tr
-                      key={row.id}
-                      className="border-b border-stone-50 last:border-0 hover:bg-stone-50 transition-colors"
-                    >
-                      <td className="px-5 py-3">
-                        <div className="font-medium text-stone-900 line-clamp-2">{row.hypothesis}</div>
-                        {row.responsible && (
-                          <div className="text-xs text-stone-400 mt-0.5">👤 {row.responsible}</div>
-                        )}
-                      </td>
-                      <td className="px-3 py-3">
-                        {row.project_id ? (
-                          <span className="flex items-center gap-1.5 text-xs text-stone-600">
-                            <span
-                              className="w-2 h-2 rounded-full shrink-0"
-                              style={{ backgroundColor: PROJECT_COLORS[row.project_id] || '#999' }}
-                            />
-                            {PROJECT_NAMES[row.project_id] || row.project_id}
-                          </span>
-                        ) : (
-                          <span className="text-xs text-stone-300">—</span>
-                        )}
-                      </td>
-                      <td className="px-3 py-3 text-xs text-stone-500">
-                        {row.insight_deadline
-                          ? new Date(row.insight_deadline).toLocaleDateString('en-GB', { day:'2-digit', month:'short' })
-                          : '—'}
-                      </td>
-                      <td className="px-3 py-3 text-xs text-stone-500 max-w-[160px]">
-                        <span className="line-clamp-2">{row.insight || '—'}</span>
-                      </td>
-                      <td className="px-3 py-3">
-                        <StatusDropdown
-                          value={row.status}
-                          onChange={val => handleStatusChange(row.id, val)}
-                        />
-                      </td>
-                      <td className="px-3 py-3 text-right">
-                        <button
-                          onClick={() => openEdit(row)}
-                          className="text-stone-400 hover:text-stone-700 p-1 rounded transition-colors"
-                          title="Edit"
-                        >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                              d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125" />
-                          </svg>
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+              {/* Mobile cards */}
+              <div>
+                {items.map(row => (
+                  <HadiCard
+                    key={row.id}
+                    row={row}
+                    onEdit={openEdit}
+                    onStatusChange={handleStatusChange}
+                  />
+                ))}
+              </div>
             </div>
           ))}
         </div>
