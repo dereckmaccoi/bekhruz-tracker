@@ -47,63 +47,36 @@ export default function Workshop() {
     }).catch(() => {});
   };
 
+  const TABS = [
+    { key: 'data',     label: t('todaysData') },
+    { key: 'periods',  label: 'Periods' },
+    { key: 'targets',  label: t('targets') },
+    { key: 'rollover', label: 'Rollover' },
+    { key: 'projects', label: 'Projects' },
+  ];
+
   return (
-    <div className="p-6 max-w-4xl mx-auto">
-      <div className="flex items-center gap-1 mb-6">
-        <div className="flex gap-1 bg-stone-100 p-1 rounded-lg">
-          <button
-            onClick={() => setTab('data')}
-            className={`px-4 py-1.5 text-sm rounded-md transition-colors ${
-              tab === 'data'
-                ? 'bg-white text-stone-900 font-medium shadow-sm'
-                : 'text-stone-500 hover:text-stone-700'
-            }`}
-          >
-            {t('todaysData')}
-          </button>
-          <button
-            onClick={() => setTab('periods')}
-            className={`px-4 py-1.5 text-sm rounded-md transition-colors ${
-              tab === 'periods'
-                ? 'bg-white text-stone-900 font-medium shadow-sm'
-                : 'text-stone-500 hover:text-stone-700'
-            }`}
-          >
-            Periods
-          </button>
-          <button
-            onClick={() => setTab('targets')}
-            className={`px-4 py-1.5 text-sm rounded-md transition-colors ${
-              tab === 'targets'
-                ? 'bg-white text-stone-900 font-medium shadow-sm'
-                : 'text-stone-500 hover:text-stone-700'
-            }`}
-          >
-            {t('targets')}
-          </button>
-          <button
-            onClick={() => setTab('rollover')}
-            className={`px-4 py-1.5 text-sm rounded-md transition-colors ${
-              tab === 'rollover'
-                ? 'bg-white text-stone-900 font-medium shadow-sm'
-                : 'text-stone-500 hover:text-stone-700'
-            }`}
-          >
-            Rollover
-          </button>
-          <button
-            onClick={() => setTab('projects')}
-            className={`px-4 py-1.5 text-sm rounded-md transition-colors ${
-              tab === 'projects'
-                ? 'bg-white text-stone-900 font-medium shadow-sm'
-                : 'text-stone-500 hover:text-stone-700'
-            }`}
-          >
-            Projects
-          </button>
+    <div className="max-w-4xl mx-auto">
+      {/* Scrollable tab bar — never overflows on mobile */}
+      <div className="overflow-x-auto" style={{ WebkitOverflowScrolling: 'touch' }}>
+        <div className="flex gap-1 bg-stone-100 p-1 rounded-xl mx-4 mt-4 mb-5 w-fit min-w-full">
+          {TABS.map(({ key, label }) => (
+            <button
+              key={key}
+              type="button"
+              onClick={() => setTab(key)}
+              className={`px-3.5 py-1.5 text-sm rounded-lg whitespace-nowrap transition-colors shrink-0 ${
+                tab === key
+                  ? 'bg-white text-stone-900 font-medium shadow-sm'
+                  : 'text-stone-500'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
         </div>
-        <span className="text-xs text-stone-400 ml-2">{t('ctrlEnterHint')}</span>
       </div>
+      <div className="px-4 pb-6">
 
       {tab === 'data' && (
         <DataTab
@@ -143,6 +116,7 @@ export default function Workshop() {
       {tab === 'projects' && (
         <ProjectsTab />
       )}
+      </div>
     </div>
   );
 }

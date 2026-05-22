@@ -11,7 +11,6 @@ function addDays(dateStr, n) {
   return toISODate(d);
 }
 
-/** All calendar dates from start to end (inclusive) */
 function getDaysInRange(start, end) {
   const days = [];
   let cur = start.slice(0, 10);
@@ -20,8 +19,7 @@ function getDaysInRange(start, end) {
   return days;
 }
 
-/** Color-code a cell vs its daily target */
-function cellStyle(value, dailyTgt, isInverse) {
+function cellBg(value, dailyTgt, isInverse) {
   if (value === '' || value === undefined || value === null) return null;
   const v = Number(value);
   if (isInverse) {
@@ -39,64 +37,60 @@ export default function DataTab({ periods, activePeriod, selectedProject, onProj
   const { t } = useLang();
   const today = toISODate(new Date());
 
-  const projectList = projects || [];
-  // Active project: controlled from parent (Workshop)
+  const projectList   = projects || [];
   const activeProject = selectedProject || projectList[0]?.id;
   const activeProj    = projectList.find(p => p.id === activeProject);
 
-  // displayPeriod drives the grid — follows activePeriod by default
   const [displayPeriod, setDisplayPeriod] = useState(null);
   const [allMetrics, setAllMetrics]       = useState([]);
   const [allTargets, setAllTargets]       = useState([]);
-  const [dbEntries, setDbEntries]         = useState({}); // { date: { metricId: value } }
+  const [dbEntries, setDbEntries]         = useState({});
   const [edits, setEdits]                 = useState({});
   const [saving, setSaving]               = useState(false);
   const [saveMsg, setSaveMsg]             = useState(null);
+  // Expanded days: today is open by default; others collapsed
+  const [expandedDays, setExpandedDays]   = useState({});
 
-  // Sync displayPeriod to activePeriod whenever it changes (project switch or first load)
   useEffect(() => {
     setDisplayPeriod(activePeriod || null);
+    setExpandedDays({});
   }, [activePeriod?.id]);
 
-  // Sorted periods for prev/next navigation
-  const sortedPeriods = [...(periods || [])]
-    .sort((a, b) => a.start_date.localeCompare(b.start_date));
-  const currentIdx  = sortedPeriods.findIndex(p => p.id === displayPeriod?.id);
-  const prevPeriod  = sortedPeriods[currentIdx - 1] ?? null;
-  const nextPeriod  = sortedPeriods[currentIdx + 1] ?? null;
-  // Don't allow navigating into fully-future periods
-  const canGoNext   = nextPeriod && nextPeriod.start_date.slice(0, 10) <= today;
+  const sortedPeriods = [...(periods || [])].sort((a, b) => a.start_date.localeCompare(b.start_date));
+  const currentIdx    = sortedPeriods.findIndex(p => p.id === displayPeriod?.id);
+  const prevPeriod    = sortedPeriods[currentIdx - 1] ?? null;
+  const nextPeriod    = sortedPeriods[currentIdx + 1] ?? null;
+  const canGoNext     = nextPeriod && nextPeriod.start_date.slice(0, 10) <= today;
 
-  // Days to show = every day in the displayPeriod
   const periodDays = displayPeriod
     ? getDaysInRange(displayPeriod.start_date, displayPeriod.end_date)
     : [];
 
-  const months  = t('months');
-  const shortM  = months.map(m => m.slice(0, 3));
-  const days    = t('days'); // ['Mo','Tu','We',…]
+  const shortMonths = t('months').map(m => m.slice(0, 3));
+  const dayNames    = t('days');
+  function dayIdx(dateStr) {
+    const d = new Date(dateStr + 'T12:00:00').getDay();
+    return (d + 6) % 7;
+  }
+  function fmtDay(dateStr) {
+    const d = new Date(dateStr + 'T12:00:00');
+    return `${dayNames[dayIdx(dateStr)]} ${d.getDate()} ${shortMonths[d.getMonth()]}`;
+  }
 
-  // Period label e.g. "H1 W18  ·  4–10 May 2026"
   const periodLabel = displayPeriod ? (() => {
     const s = new Date(displayPeriod.start_date.slice(0, 10) + 'T12:00:00');
     const e = new Date(displayPeriod.end_date.slice(0, 10) + 'T12:00:00');
     const range = s.getMonth() === e.getMonth()
-      ? `${s.getDate()}–${e.getDate()} ${shortM[e.getMonth()]} ${e.getFullYear()}`
-      : `${s.getDate()} ${shortM[s.getMonth()]} – ${e.getDate()} ${shortM[e.getMonth()]} ${e.getFullYear()}`;
+      ? `${s.getDate()}–${e.getDate()} ${shortMonths[e.getMonth()]} ${e.getFullYear()}`
+      : `${s.getDate()} ${shortMonths[s.getMonth()]} – ${e.getDate()} ${shortMonths[e.getMonth()]} ${e.getFullYear()}`;
     return `${displayPeriod.name}  ·  ${range}`;
   })() : '—';
 
-  // ── Load metrics (once, all projects — needed for the filled/possible counts) ──
-  useEffect(() => {
-    api.getMetrics().then(setAllMetrics);
-  }, []);
+  useEffect(() => { api.getMetrics().then(setAllMetrics); }, []);
 
-  // ── Load targets + entries when displayPeriod or project changes ──────────
   useEffect(() => {
     if (!displayPeriod) return;
     setEdits({});
-    // Fetch entries by date range rather than period_id — old entries may have
-    // been saved under a different period_id (before per-project periods existed).
     Promise.all([
       api.getTargets({ period_id: displayPeriod.id }),
       api.getEntries({
@@ -115,7 +109,6 @@ export default function DataTab({ periods, activePeriod, selectedProject, onProj
     });
   }, [displayPeriod?.id]);
 
-  // ── Cell helpers ──────────────────────────────────────────────────────
   const getVal = (date, metricId) => {
     if (edits[date]?.[metricId] !== undefined) return edits[date][metricId];
     return dbEntries[date]?.[metricId] ?? '';
@@ -126,7 +119,6 @@ export default function DataTab({ periods, activePeriod, selectedProject, onProj
     setSaveMsg(null);
   };
 
-  // ── Save ──────────────────────────────────────────────────────────────
   const doSave = async () => {
     if (!displayPeriod) return;
     setSaving(true);
@@ -146,7 +138,6 @@ export default function DataTab({ periods, activePeriod, selectedProject, onProj
         });
       });
       await Promise.all(saves);
-      // Merge edits → db
       setDbEntries(prev => {
         const next = { ...prev };
         Object.entries(edits).forEach(([date, dayEdits]) => {
@@ -164,50 +155,100 @@ export default function DataTab({ periods, activePeriod, selectedProject, onProj
     }
   };
 
-  // Ctrl+Enter
   useEffect(() => {
     const h = (e) => { if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); doSave(); } };
     window.addEventListener('keydown', h);
     return () => window.removeEventListener('keydown', h);
   }, [edits, displayPeriod, activeProject]);
 
-  // ── Derived ───────────────────────────────────────────────────────────
   const projectMetrics = allMetrics.filter(m => m.project_id === activeProject);
   const targetMap      = Object.fromEntries(allTargets.map(tg => [tg.metric_id, tg]));
   const dirtyCount     = Object.values(edits).reduce((s, d) => s + Object.keys(d).length, 0);
 
-  const weekTotals = projectMetrics.map(m =>
-    periodDays.reduce((sum, date) => {
-      const v = getVal(date, m.id);
-      return sum + (v !== '' ? Number(v) : 0);
-    }, 0)
+  // Past days sorted newest first (excluding today and future)
+  const pastDays = [...periodDays]
+    .filter(d => d < today)
+    .sort((a, b) => b.localeCompare(a));
+
+  const isExpanded = (date) => {
+    if (date === today) return true; // today always open
+    return !!expandedDays[date];
+  };
+
+  const toggleDay = (date) => {
+    if (date === today) return;
+    setExpandedDays(prev => ({ ...prev, [date]: !prev[date] }));
+  };
+
+  // Summary for a day: count of filled metrics / total
+  const daySummary = (date) => {
+    const filled = projectMetrics.filter(m => getVal(date, m.id) !== '').length;
+    return { filled, total: projectMetrics.length };
+  };
+
+  const MetricInputGrid = ({ date }) => (
+    <div className="grid grid-cols-2 gap-2 pt-2">
+      {projectMetrics.map(m => {
+        const tgt  = targetMap[m.id];
+        const dt   = tgt && displayPeriod ? dailyTarget(tgt.weekly_target, displayPeriod) : 0;
+        const val  = getVal(date, m.id);
+        const cs   = val !== '' ? cellBg(val, dt, !!m.is_inverse) : null;
+        const dirty = edits[date]?.[m.id] !== undefined;
+        return (
+          <div key={m.id} className="space-y-0.5">
+            <div className="flex items-baseline justify-between">
+              <span className="text-xs font-medium text-stone-500">{m.name}</span>
+              {dt > 0 && (
+                <span className="text-[10px] text-stone-400">
+                  {m.is_inverse ? '≤' : '~'}{formatNum(dt)}/day
+                </span>
+              )}
+            </div>
+            <input
+              type="number"
+              inputMode="numeric"
+              min="0"
+              value={val}
+              onChange={e => handleCell(date, m.id, e.target.value)}
+              onFocus={e => e.target.select()}
+              style={
+                cs    ? { backgroundColor: cs.bg, color: cs.text, borderColor: 'transparent' } :
+                dirty ? { borderColor: activeProj?.color, boxShadow: `0 0 0 2px ${activeProj?.color}22` } :
+                {}
+              }
+              className={`w-full text-right text-sm rounded-lg px-3 py-2 border outline-none transition-all
+                [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none
+                ${cs || dirty
+                  ? 'border-transparent'
+                  : 'border-stone-200 bg-white focus:border-stone-400 focus:ring-2 focus:ring-stone-100'
+                }`}
+              placeholder="—"
+            />
+          </div>
+        );
+      })}
+    </div>
   );
 
-  // Day-of-week index (0=Mon … 6=Sun) for the days label
-  function dayIdx(dateStr) {
-    const d = new Date(dateStr + 'T12:00:00').getDay(); // 0=Sun
-    return (d + 6) % 7; // 0=Mon
-  }
-
-  // ── Render ────────────────────────────────────────────────────────────
   return (
     <div>
-      {/* ── Project tabs ───────────────────────────────────────────── */}
-      <div className="flex gap-1.5 mb-5 flex-wrap">
+      {/* Project pills */}
+      <div className="flex gap-1.5 mb-4 flex-wrap">
         {projectList.map(p => {
-          const isActive  = activeProject === p.id;
-          const pMetrics  = allMetrics.filter(m => m.project_id === p.id);
-          const filled    = pMetrics.reduce((n, m) =>
+          const isActive = activeProject === p.id;
+          const pMetrics = allMetrics.filter(m => m.project_id === p.id);
+          const filled   = pMetrics.reduce((n, m) =>
             n + periodDays.filter(d => d <= today && getVal(d, m.id) !== '').length, 0);
-          const possible  = pMetrics.length * periodDays.filter(d => d <= today).length;
+          const possible = pMetrics.length * periodDays.filter(d => d <= today).length;
           return (
             <button
               key={p.id}
+              type="button"
               onClick={() => onProjectChange?.(p.id)}
               className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors border ${
                 isActive
                   ? 'text-white border-transparent'
-                  : 'bg-white text-stone-500 border-stone-200 hover:border-stone-300 hover:text-stone-700'
+                  : 'bg-white text-stone-500 border-stone-200'
               }`}
               style={isActive ? { backgroundColor: p.color, borderColor: p.color } : {}}
             >
@@ -222,170 +263,93 @@ export default function DataTab({ periods, activePeriod, selectedProject, onProj
         })}
       </div>
 
-      {/* ── No periods notice ──────────────────────────────────────── */}
       {periods.length === 0 && (
         <div className="text-sm text-stone-400 italic py-4 text-center">
-          No periods set for this project — go to Targets → Manage periods to add one.
+          No periods set — go to Periods tab to add one.
         </div>
       )}
 
-      {/* ── Period navigation ──────────────────────────────────────── */}
       {periods.length > 0 && (
         <>
-          <div className="flex items-center justify-between mb-3">
-            <button
+          {/* Period navigation */}
+          <div className="flex items-center justify-between mb-4">
+            <button type="button"
               onClick={() => prevPeriod && setDisplayPeriod(prevPeriod)}
               disabled={!prevPeriod}
-              className="w-7 h-7 flex items-center justify-center rounded-md hover:bg-stone-100 text-stone-500 disabled:opacity-25 transition-colors text-base"
+              className="w-8 h-8 flex items-center justify-center rounded-lg text-stone-400 disabled:opacity-25"
             >←</button>
-            <span className="text-sm font-semibold text-stone-700">{periodLabel}</span>
-            <button
+            <span className="text-sm font-semibold text-stone-700 text-center">{periodLabel}</span>
+            <button type="button"
               onClick={() => canGoNext && setDisplayPeriod(nextPeriod)}
               disabled={!canGoNext}
-              className="w-7 h-7 flex items-center justify-center rounded-md hover:bg-stone-100 text-stone-500 disabled:opacity-25 transition-colors text-base"
+              className="w-8 h-8 flex items-center justify-center rounded-lg text-stone-400 disabled:opacity-25"
             >→</button>
           </div>
 
-          {/* ── Grid ───────────────────────────────────────────────────── */}
-          <div className="overflow-x-auto rounded-xl border border-stone-200">
-            <table className="w-full text-sm border-collapse">
-              <thead>
-                <tr className="border-b border-stone-200 bg-stone-50">
-                  <th className="py-2.5 pl-4 pr-2 text-left text-xs font-semibold text-stone-400 uppercase tracking-wide w-20">
-                    Day
-                  </th>
-                  {projectMetrics.map(m => {
-                    const tgt = targetMap[m.id];
-                    const dt  = tgt && displayPeriod ? dailyTarget(tgt.weekly_target, displayPeriod) : 0;
-                    return (
-                      <th key={m.id} className="py-2.5 px-3 text-right text-xs font-semibold text-stone-700 min-w-[100px]">
-                        <div className="uppercase tracking-wide">{m.name}</div>
-                        {dt > 0 && (
-                          <div className="text-[10px] font-normal text-stone-400 normal-case tracking-normal">
-                            {!!m.is_inverse ? '≤' : '~'}{formatNum(dt)}/day
-                          </div>
-                        )}
-                      </th>
-                    );
-                  })}
-                </tr>
-              </thead>
+          <div className="space-y-2">
+            {/* TODAY — always expanded */}
+            {periodDays.includes(today) && (
+              <div className="bg-white rounded-2xl border border-stone-200 overflow-hidden">
+                <div className="px-4 pt-3.5 pb-1 flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: activeProj?.color }} />
+                  <span className="text-sm font-bold text-stone-900">Today · {fmtDay(today)}</span>
+                </div>
+                <div className="px-4 pb-4">
+                  <MetricInputGrid date={today} />
+                </div>
+              </div>
+            )}
 
-              <tbody>
-                {periodDays.map(date => {
-                  const isFuture = date > today;
-                  const isToday  = date === today;
-                  const di       = dayIdx(date);
-                  const dateObj  = new Date(date + 'T12:00:00');
-
-                  return (
-                    <tr
-                      key={date}
-                      className={`border-b border-stone-100 last:border-b-0 ${
-                        isToday ? 'bg-stone-50' : isFuture ? '' : 'hover:bg-stone-50/60'
-                      }`}
-                    >
-                      <td className="py-1.5 pl-4 pr-2 w-20">
-                        <div className="flex items-center gap-1.5">
-                          {isToday && (
-                            <span className="w-1.5 h-1.5 rounded-full shrink-0"
-                              style={{ backgroundColor: activeProj?.color }} />
-                          )}
-                          <span className={`text-xs font-medium ${
-                            isToday ? 'text-stone-800' : isFuture ? 'text-stone-300' : 'text-stone-500'
-                          }`}>
-                            {days[di]}
-                          </span>
-                          <span className={`text-xs ${
-                            isToday ? 'font-bold text-stone-800' : isFuture ? 'text-stone-300' : 'text-stone-400'
-                          }`}>
-                            {dateObj.getDate()}
-                          </span>
-                        </div>
-                      </td>
-
-                      {projectMetrics.map(m => {
-                        const tgt   = targetMap[m.id];
-                        const dt    = tgt && displayPeriod ? dailyTarget(tgt.weekly_target, displayPeriod) : 0;
-                        const val   = getVal(date, m.id);
-                        const cs    = (!isFuture && val !== '') ? cellStyle(val, dt, !!m.is_inverse) : null;
-                        const dirty = edits[date]?.[m.id] !== undefined;
-
-                        return (
-                          <td key={m.id} className="py-1 px-2">
-                            <input
-                              type="number"
-                              min="0"
-                              value={val}
-                              disabled={isFuture}
-                              onChange={e => handleCell(date, m.id, e.target.value)}
-                              onFocus={e => e.target.select()}
-                              style={
-                                cs    ? { backgroundColor: cs.bg, color: cs.text, borderColor: 'transparent' } :
-                                dirty ? { borderColor: activeProj?.color, boxShadow: `0 0 0 2px ${activeProj?.color}22` } :
-                                {}
-                              }
-                              className={`w-full text-right text-sm rounded-md px-2 py-1.5 border outline-none transition-all
-                                [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none
-                                ${isFuture
-                                  ? 'bg-transparent border-transparent text-stone-300 cursor-not-allowed'
-                                  : cs || dirty
-                                    ? 'border-transparent'
-                                    : 'border-stone-200 bg-white hover:border-stone-300 focus:border-stone-400 focus:ring-2 focus:ring-stone-200'
-                                }`}
-                              placeholder={isFuture ? '' : '—'}
-                            />
-                          </td>
-                        );
-                      })}
-                    </tr>
-                  );
-                })}
-              </tbody>
-
-              <tfoot>
-                <tr className="border-t-2 border-stone-200 bg-stone-50">
-                  <td className="py-2.5 pl-4 pr-2 text-xs font-bold text-stone-500 uppercase tracking-wide">
-                    Total
-                  </td>
-                  {projectMetrics.map((m, i) => {
-                    const tgt   = targetMap[m.id];
-                    const wt    = tgt?.weekly_target ?? 0;
-                    const total = weekTotals[i];
-                    const good  = wt === 0 ? null : !!m.is_inverse ? total <= wt : total >= wt;
-                    return (
-                      <td key={m.id} className="py-2.5 px-3 text-right">
-                        <span className="text-sm font-bold"
-                          style={{ color: good === null ? '#57534e' : good ? '#085041' : '#791F1F' }}>
-                          {formatNum(total)}
-                        </span>
-                        {wt > 0 && (
-                          <span className="text-[10px] text-stone-400 ml-1">/ {formatNum(wt)}</span>
-                        )}
-                      </td>
-                    );
-                  })}
-                </tr>
-              </tfoot>
-            </table>
+            {/* Past days — collapsed by default */}
+            {pastDays.map(date => {
+              const open = isExpanded(date);
+              const { filled, total } = daySummary(date);
+              const hasDirty = projectMetrics.some(m => edits[date]?.[m.id] !== undefined);
+              return (
+                <div key={date} className="bg-white rounded-2xl border border-stone-200 overflow-hidden">
+                  <button
+                    type="button"
+                    className="w-full flex items-center justify-between px-4 py-3 text-left"
+                    onClick={() => toggleDay(date)}
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-stone-400">{open ? '▾' : '▸'}</span>
+                      <span className="text-sm font-medium text-stone-700">{fmtDay(date)}</span>
+                      {hasDirty && (
+                        <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: activeProj?.color }} />
+                      )}
+                    </div>
+                    <span className={`text-xs ${filled === total && total > 0 ? 'text-[#085041]' : 'text-stone-400'}`}>
+                      {filled}/{total}
+                    </span>
+                  </button>
+                  {open && (
+                    <div className="px-4 pb-4">
+                      <MetricInputGrid date={date} />
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
 
-          {/* ── Save bar ───────────────────────────────────────────────── */}
+          {/* Save bar */}
           <div className="flex items-center justify-between pt-4 mt-1">
-            <div className="text-xs text-stone-400">
+            <span className="text-xs text-stone-400">
               {saveMsg === 'saved'
                 ? '✓ Saved'
                 : saveMsg
                 ? <span className="text-[#791F1F]">{saveMsg}</span>
                 : dirtyCount > 0
-                ? `${dirtyCount} unsaved change${dirtyCount !== 1 ? 's' : ''}`
-                : t('ctrlEnterHint')}
-            </div>
+                ? `${dirtyCount} unsaved`
+                : ''}
+            </span>
             <button
+              type="button"
               onClick={doSave}
-              disabled={saving}
+              disabled={saving || dirtyCount === 0}
               style={dirtyCount > 0 && !saving ? { backgroundColor: activeProj?.color } : {}}
-              className="px-5 py-2 bg-stone-800 text-white rounded-lg text-sm font-medium hover:opacity-90 disabled:opacity-50 transition-all"
+              className="px-5 py-2.5 bg-stone-800 text-white rounded-xl text-sm font-semibold disabled:opacity-40 transition-all"
             >
               {saving ? t('saving') : `${t('saveAll')} · ${displayPeriod?.name ?? ''}`}
             </button>
