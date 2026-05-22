@@ -12,7 +12,7 @@ function getAllowedIds() {
 }
 
 if (process.env.TELEGRAM_BOT_TOKEN) {
-  bot = new TelegramBot(process.env.TELEGRAM_BOT_TOKEN, { webHook: true });
+  bot = new TelegramBot(process.env.TELEGRAM_BOT_TOKEN, { polling: false });
 
   // /start
   bot.onText(/\/start/, async (msg) => {
