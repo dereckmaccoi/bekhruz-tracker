@@ -88,7 +88,7 @@ export default function QuickEntry() {
   return (
     <>
       {/* Floating "+" button with optional red dot badge */}
-      <div className="fixed bottom-4 left-4 z-50">
+      <div className="fixed bottom-24 left-4 z-50">
         <button
           onClick={() => setOpen(true)}
           className="relative w-12 h-12 rounded-full bg-stone-800 text-white shadow-lg flex items-center justify-center text-2xl hover:bg-stone-700 active:scale-95 transition-all select-none"

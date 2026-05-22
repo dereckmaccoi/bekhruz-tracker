@@ -50,6 +50,7 @@ function StatusDropdown({ value, onChange }) {
   return (
     <div className="relative">
       <button
+        type="button"
         onClick={() => setOpen(o => !o)}
         className={`px-2.5 py-1 rounded-full text-xs font-medium ${meta.bg} ${meta.text} whitespace-nowrap`}
       >
@@ -59,6 +60,7 @@ function StatusDropdown({ value, onChange }) {
         <div className="absolute left-0 top-full mt-1 z-20 bg-white border border-stone-200 rounded-lg shadow-lg overflow-hidden min-w-[130px]">
           {Object.entries(STATUS_META).map(([val, m]) => (
             <button
+              type="button"
               key={val}
               onClick={() => { onChange(val); setOpen(false); }}
               className={`w-full text-left px-3 py-2 text-xs hover:bg-stone-50 ${val === value ? 'font-semibold' : ''}`}

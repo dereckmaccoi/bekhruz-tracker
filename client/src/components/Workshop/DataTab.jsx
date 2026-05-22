@@ -35,7 +35,7 @@ function cellStyle(value, dailyTgt, isInverse) {
   return { bg: '#FCEBEB', text: '#791F1F' };
 }
 
-export default function DataTab({ periods, activePeriod, onSaved, selectedProject, onProjectChange, projects }) {
+export default function DataTab({ periods, activePeriod, selectedProject, onProjectChange, projects }) {
   const { t } = useLang();
   const today = toISODate(new Date());
 
@@ -156,7 +156,6 @@ export default function DataTab({ periods, activePeriod, onSaved, selectedProjec
       });
       setEdits({});
       setSaveMsg('saved');
-      onSaved?.();
       setTimeout(() => setSaveMsg(null), 2500);
     } catch (e) {
       setSaveMsg('error: ' + e.message);

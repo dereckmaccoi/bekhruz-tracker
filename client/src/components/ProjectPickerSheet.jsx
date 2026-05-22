@@ -29,7 +29,7 @@ export default function ProjectPickerSheet({ open, onClose, projects }) {
 
       {/* Sheet */}
       <div
-        className={`fixed bottom-0 left-0 right-0 z-60 bg-white rounded-t-2xl shadow-xl transition-transform duration-200 ${
+        className={`fixed bottom-0 left-0 right-0 z-[60] bg-white rounded-t-2xl shadow-xl transition-transform duration-200 ${
           open ? 'translate-y-0' : 'translate-y-full'
         }`}
         style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
