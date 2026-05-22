@@ -408,7 +408,6 @@ export default function Dashboard() {
   });
 
   // Smart alerts: metrics behind pace with catch-up math
-  const todayStr = new Date().toISOString().slice(0, 10);
   const smartAlerts = [];
   loaded.forEach(proj => {
     const pd = projectData[proj.id];
@@ -424,8 +423,8 @@ export default function Dashboard() {
     periodEntries.forEach(e => {
       actualMap[e.metric_id] = (actualMap[e.metric_id] || 0) + Number(e.value);
     });
-    const remainingDays = todayStr <= pEnd
-      ? Math.max(1, Math.round((new Date(pEnd) - new Date(todayStr)) / 86400000) + 1)
+    const remainingDays = todayStr2 <= pEnd
+      ? Math.max(1, Math.round((new Date(pEnd) - new Date(todayStr2)) / 86400000) + 1)
       : 0;
     if (remainingDays === 0) return;
     metrics.forEach(m => {
