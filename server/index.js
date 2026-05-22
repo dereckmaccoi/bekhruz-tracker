@@ -75,6 +75,27 @@ async function runMigrations() {
     )
   `);
 
+  await query(`
+    CREATE TABLE IF NOT EXISTS hypotheses (
+      id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      project_id       TEXT REFERENCES projects(id) ON DELETE SET NULL,
+      hypothesis       TEXT NOT NULL,
+      point_a          TEXT,
+      point_b          TEXT,
+      action_deadline  DATE,
+      insight_deadline DATE,
+      responsible      TEXT,
+      result           TEXT,
+      idea_score       INTEGER,
+      success          BOOLEAN,
+      status           TEXT NOT NULL DEFAULT 'not_started',
+      insight          TEXT,
+      campaign_context TEXT,
+      created_at       TIMESTAMPTZ DEFAULT NOW(),
+      updated_at       TIMESTAMPTZ DEFAULT NOW()
+    )
+  `);
+
   // 2. Schema evolution for existing DBs -----------------------------------
   await query(`ALTER TABLE periods ADD COLUMN IF NOT EXISTS project_id TEXT REFERENCES projects(id) ON DELETE CASCADE`);
   await query(`ALTER TABLE periods ADD COLUMN IF NOT EXISTS parent_id  TEXT REFERENCES periods(id)  ON DELETE CASCADE`);
@@ -102,6 +123,8 @@ async function runMigrations() {
   await query(`CREATE INDEX IF NOT EXISTS idx_targets_metric_period ON targets(metric_id, period_id)`);
   await query(`CREATE INDEX IF NOT EXISTS idx_entries_metric_date  ON daily_entries(metric_id, date)`);
   await query(`CREATE INDEX IF NOT EXISTS idx_entries_period       ON daily_entries(period_id)`);
+  await query(`CREATE INDEX IF NOT EXISTS idx_hypotheses_project ON hypotheses(project_id)`);
+  await query(`CREATE INDEX IF NOT EXISTS idx_hypotheses_status  ON hypotheses(status)`);
 
   // 7. Seed initial data if the DB is empty --------------------------------
   const { rows } = await query(`SELECT COUNT(*) AS count FROM projects`);
