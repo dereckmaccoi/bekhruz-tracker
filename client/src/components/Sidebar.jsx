@@ -61,6 +61,14 @@ export default function Sidebar({ lastSaved, workshopActive }) {
               </>
             )}
           </NavLink>
+          <NavLink to="/hadi" className={navLink}>
+            {({ isActive }) => (
+              <>
+                <span className="text-base leading-none shrink-0">🚀</span>
+                HADI Board
+              </>
+            )}
+          </NavLink>
         </div>
 
         <div>

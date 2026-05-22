@@ -52,4 +52,13 @@ export const api = {
 
   // Project (data + entries for a period)
   getProject: (id, period_id) => request(`/project/${id}?period_id=${period_id}`),
+
+  // Hypotheses
+  getHypotheses: (params = {}) => {
+    const q = new URLSearchParams(params).toString();
+    return request(`/hypotheses${q ? `?${q}` : ''}`);
+  },
+  createHypothesis: (body) => request('/hypotheses', { method: 'POST', body }),
+  updateHypothesis: (id, body) => request(`/hypotheses/${id}`, { method: 'PUT', body }),
+  deleteHypothesis: (id) => request(`/hypotheses/${id}`, { method: 'DELETE' }),
 };
