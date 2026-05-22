@@ -18,7 +18,7 @@ function AppInner() {
   const [offline, setOffline] = useState(false);
 
   useEffect(() => {
-    api.getPeriods().catch(() => setOffline(true));
+    api.getHealth().catch(() => setOffline(true));
   }, []);
 
   return (

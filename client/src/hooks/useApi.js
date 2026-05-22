@@ -26,6 +26,9 @@ async function request(path, options = {}) {
 }
 
 export const api = {
+  // Health
+  getHealth: () => request('/health'),
+
   // Projects
   getProjects: () => request('/projects'),
   createProject: (body) => request('/projects', { method: 'POST', body }),

@@ -10,7 +10,7 @@ import { useLang } from '../../i18n/LangContext.jsx';
 import { detectActivePeriod } from '../../utils/calculations.js';
 import { useProjects } from '../../context/ProjectsContext.jsx';
 
-export default function Workshop({ onSaved, setWorkshopActive }) {
+export default function Workshop() {
   const { t } = useLang();
   const location = useLocation();
   const initTab     = location.state?.tab === 'targets' ? 'targets' : 'data';
@@ -111,7 +111,6 @@ export default function Workshop({ onSaved, setWorkshopActive }) {
         <DataTab
           periods={projectPeriods}
           activePeriod={projectActivePeriod}
-          onSaved={onSaved}
           selectedProject={selectedProject}
           onProjectChange={setSelectedProject}
           projects={projects}
