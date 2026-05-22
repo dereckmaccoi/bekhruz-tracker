@@ -9,6 +9,7 @@ import metricsRouter from './routes/metrics.js';
 import targetsRouter from './routes/targets.js';
 import entriesRouter from './routes/entries.js';
 import dashboardRouter from './routes/dashboard.js';
+import hypothesesRouter from './routes/hypotheses.js';
 import { query } from './lib/db.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -213,6 +214,7 @@ app.use('/api/metrics', metricsRouter);
 app.use('/api/targets', targetsRouter);
 app.use('/api/entries', entriesRouter);
 app.use('/api/dashboard', dashboardRouter);
+app.use('/api/hypotheses', hypothesesRouter);
 app.use('/api/project', dashboardRouter);
 app.get('/api/health', (_, res) => res.json({ ok: true }));
 
