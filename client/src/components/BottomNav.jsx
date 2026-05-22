@@ -1,4 +1,4 @@
-import { NavLink, useNavigate, useLocation } from 'react-router-dom';
+import { NavLink, useLocation } from 'react-router-dom';
 import { useState } from 'react';
 import ProjectPickerSheet from './ProjectPickerSheet.jsx';
 
@@ -38,6 +38,7 @@ export default function BottomNav() {
 
         {/* Projects — opens picker sheet */}
         <button
+          type="button"
           onClick={() => setSheetOpen(true)}
           className={tabCls(isProjectsActive)}
         >
