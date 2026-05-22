@@ -147,6 +147,7 @@ function ProjectCard({ project, period, data, periods = [] }) {
   if (prevPeriod && avgPct !== null) {
     const prevStart = String(prevPeriod.start_date).slice(0, 10);
     const prevEnd   = String(prevPeriod.end_date).slice(0, 10);
+    // allEntries contains all-time data (not period-filtered) — required for prev-period lookup
     const prevEntries = allEntries.filter(e => {
       const d = String(e.date).slice(0, 10);
       return d >= prevStart && d <= prevEnd;
@@ -166,7 +167,19 @@ function ProjectCard({ project, period, data, periods = [] }) {
       : null;
     if (prevAvgPct !== null) {
       const delta = avgPct - prevAvgPct;
-      popBadge = { delta, prevName: prevPeriod.name };
+      const isGreen = delta > 5;
+      const isRed   = delta < -5;
+      popBadge = {
+        delta,
+        prevName: prevPeriod.name || 'prev',
+        arrow: isGreen ? '↑' : isRed ? '↓' : '→',
+        sign: delta > 0 ? '+' : '',
+        cls: isGreen
+          ? 'bg-[#E1F5EE] text-[#085041] border border-[#1D9E75]'
+          : isRed
+          ? 'bg-[#FCEBEB] text-[#791F1F] border border-[#E24B4A]'
+          : 'bg-[#F1EFE8] text-[#444441] border border-stone-300',
+      };
     }
   }
 
@@ -235,23 +248,11 @@ function ProjectCard({ project, period, data, periods = [] }) {
                 {avgPct}% week
               </span>
             )}
-            {popBadge !== null && (() => {
-              const { delta, prevName } = popBadge;
-              const isGreen = delta > 5;
-              const isRed   = delta < -5;
-              const arrow   = isGreen ? '↑' : isRed ? '↓' : '→';
-              const sign    = delta > 0 ? '+' : '';
-              const cls     = isGreen
-                ? 'bg-[#E1F5EE] text-[#085041] border border-[#1D9E75]'
-                : isRed
-                ? 'bg-[#FCEBEB] text-[#791F1F] border border-[#E24B4A]'
-                : 'bg-[#F1EFE8] text-[#444441] border border-stone-300';
-              return (
-                <span className={`text-xs font-semibold px-2 py-0.5 rounded-lg ${cls}`}>
-                  {arrow} {sign}{delta}% vs {prevName}
-                </span>
-              );
-            })()}
+            {popBadge !== null && (
+              <span className={`text-xs font-semibold px-2 py-0.5 rounded-lg ${popBadge.cls}`}>
+                {popBadge.arrow} {popBadge.sign}{popBadge.delta}% vs {popBadge.prevName}
+              </span>
+            )}
           </div>
         </div>
 
