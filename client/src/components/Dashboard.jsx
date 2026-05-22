@@ -407,6 +407,47 @@ export default function Dashboard() {
     if (avg !== null && avg < 70) campaignBehindCount++;
   });
 
+  // Smart alerts: metrics behind pace with catch-up math
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const smartAlerts = [];
+  loaded.forEach(proj => {
+    const pd = projectData[proj.id];
+    if (!pd?.data || !pd?.period) return;
+    const { metrics = [], targets = [], entries: allEntries = [] } = pd.data;
+    const pStart = String(pd.period.start_date).slice(0, 10);
+    const pEnd   = String(pd.period.end_date).slice(0, 10);
+    const periodEntries = allEntries.filter(e => {
+      const d = String(e.date).slice(0, 10);
+      return d >= pStart && d <= pEnd;
+    });
+    const actualMap = {};
+    periodEntries.forEach(e => {
+      actualMap[e.metric_id] = (actualMap[e.metric_id] || 0) + Number(e.value);
+    });
+    const remainingDays = todayStr <= pEnd
+      ? Math.max(1, Math.round((new Date(pEnd) - new Date(todayStr)) / 86400000) + 1)
+      : 0;
+    if (remainingDays === 0) return;
+    metrics.forEach(m => {
+      if (m.is_inverse) return;
+      const tgt = targets.find(t => t.metric_id === m.id);
+      if (!tgt) return;
+      const actual = actualMap[m.id] || 0;
+      const pct = pacePercent(actual, tgt.weekly_target, pd.period, false);
+      if (pct === null || pct >= 70) return;
+      const needPerDay = Math.ceil((tgt.weekly_target - actual) / remainingDays);
+      if (needPerDay <= 0) return;
+      smartAlerts.push({
+        projName: proj.name,
+        metricName: m.name,
+        needPerDay,
+        remainingDays,
+        pct,
+      });
+    });
+  });
+  smartAlerts.sort((a, b) => a.pct - b.pct);
+
   return (
     <div className="min-h-full bg-stone-50">
       <div className="max-w-4xl mx-auto px-6 py-8">
@@ -452,6 +493,21 @@ export default function Dashboard() {
           <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-xl px-4 py-2.5 mb-5 text-sm text-amber-800">
             <span>⏰</span>
             <span>Don't forget to log today's numbers</span>
+          </div>
+        )}
+
+        {/* Smart alerts */}
+        {smartAlerts.length > 0 && (
+          <div className="bg-[#FCEBEB] border border-[#E24B4A] rounded-xl px-4 py-3 mb-5 space-y-1">
+            {smartAlerts.map((a, i) => (
+              <div key={i} className="flex items-center gap-2 text-sm text-[#791F1F]">
+                <span>⚠️</span>
+                <span>
+                  <span className="font-semibold">{a.projName} · {a.metricName}</span>
+                  {' — '}need {a.needPerDay}/day for {a.remainingDays} day{a.remainingDays !== 1 ? 's' : ''} to hit target
+                </span>
+              </div>
+            ))}
           </div>
         )}
 
