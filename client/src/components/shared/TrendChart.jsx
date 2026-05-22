@@ -25,21 +25,29 @@ export default function TrendChart({ metrics, periods, allEntries, allTargets, c
 
   const today = new Date().toISOString().slice(0, 10);
 
+  // Pre-bucket entries by period index and metric ID (one pass instead of O(periods × metrics × N))
+  const periodRanges = periods.map(p => ({
+    start: String(p.start_date).slice(0, 10),
+    end:   String(p.end_date).slice(0, 10),
+  }));
+  // actualByPeriod[periodIdx][metricId] = total actual value
+  const actualByPeriod = periods.map(() => ({}));
+  allEntries.forEach(e => {
+    const d = String(e.date).slice(0, 10);
+    for (let i = 0; i < periodRanges.length; i++) {
+      if (d >= periodRanges[i].start && d <= periodRanges[i].end) {
+        actualByPeriod[i][e.metric_id] = (actualByPeriod[i][e.metric_id] || 0) + Number(e.value);
+        break; // an entry belongs to exactly one period
+      }
+    }
+  });
+
   // For each period × metric, compute the performance %
   const seriesData = metrics.map(m => {
     const points = periods.map((p, i) => {
-      const pStart = String(p.start_date).slice(0, 10);
-      const pEnd   = String(p.end_date).slice(0, 10);
+      const { start: pStart, end: pEnd } = periodRanges[i];
       const isCompleted = pEnd < today;
-
-      const periodEntries = allEntries.filter(e => {
-        const d = String(e.date).slice(0, 10);
-        return d >= pStart && d <= pEnd;
-      });
-      const actual = periodEntries.reduce((sum, e) => {
-        if (e.metric_id === m.id) return sum + Number(e.value);
-        return sum;
-      }, 0);
+      const actual = actualByPeriod[i][m.id] || 0;
 
       // Find target: period-specific first, then fallback to campaign
       const tgt = allTargets.find(t => t.period_id === p.id && t.metric_id === m.id)
@@ -65,7 +73,6 @@ export default function TrendChart({ metrics, periods, allEntries, allTargets, c
   const n = periods.length;
 
   function xPos(i) {
-    if (n === 1) return PAD_LEFT + chartW / 2;
     return PAD_LEFT + (i / (n - 1)) * chartW;
   }
 
@@ -92,7 +99,7 @@ export default function TrendChart({ metrics, periods, allEntries, allTargets, c
   }
 
   const PALETTE = ['#1D9E75', '#EF9F27', '#E24B4A', '#4A90D9', '#9B59B6', '#E67E22'];
-  function metricColor(m, idx) {
+  function metricColor(_m, idx) {
     return PALETTE[idx % PALETTE.length];
   }
 
