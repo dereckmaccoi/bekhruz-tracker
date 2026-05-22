@@ -20,19 +20,26 @@ export function telegramAuthMiddleware(req, res, next) {
   // 3. Compute expected hash
   const secretKey = crypto
     .createHmac('sha256', 'WebAppData')
-    .update(process.env.TELEGRAM_BOT_TOKEN)
+    .update(process.env.TELEGRAM_BOT_TOKEN ?? '')
     .digest();
   const expectedHash = crypto
     .createHmac('sha256', secretKey)
     .update(dataCheckString)
     .digest('hex');
 
-  // 4. Compare (timing-safe)
-  if (expectedHash !== hash) return res.status(401).json({ error: 'invalid_init_data' });
+  // 4. Compare (constant-time to prevent timing oracle)
+  const expectedBuf = Buffer.from(expectedHash, 'hex');
+  const receivedBuf = Buffer.from(hash.length === expectedHash.length ? hash : '', 'hex');
+  if (expectedBuf.length !== receivedBuf.length || !crypto.timingSafeEqual(expectedBuf, receivedBuf)) {
+    return res.status(401).json({ error: 'invalid_init_data' });
+  }
 
-  // 5. Check auth_date (must be within 24 hours)
+  // 5. Check auth_date (must be within 24 hours, reject future-dated tokens)
   const authDate = parseInt(params.get('auth_date'), 10);
-  if (!authDate || Date.now() / 1000 - authDate > 86400) {
+  const MAX_AUTH_AGE_SECONDS = 86400;
+  const now = Math.floor(Date.now() / 1000);
+  const age = now - authDate;
+  if (!authDate || age < -60 || age > MAX_AUTH_AGE_SECONDS) {
     return res.status(401).json({ error: 'init_data_expired' });
   }
 
@@ -41,6 +48,9 @@ export function telegramAuthMiddleware(req, res, next) {
   try {
     user = JSON.parse(params.get('user'));
   } catch {
+    return res.status(401).json({ error: 'invalid_init_data' });
+  }
+  if (!user || typeof user.id !== 'number') {
     return res.status(401).json({ error: 'invalid_init_data' });
   }
 
