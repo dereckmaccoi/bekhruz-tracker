@@ -34,6 +34,8 @@ export default function TargetsTab({
   const [addingMetric, setAddingMetric]         = useState(false);
   const [newMetric, setNewMetric]               = useState({ name: '', target: '', is_inverse: false });
   const [confirmDelete, setConfirmDelete]       = useState(null);
+  const [copySource, setCopySource]             = useState(null); // { period, targets: [] } | null
+  const [copying, setCopying]                   = useState(false);
 
   // Sync period list and default to the active week
   useEffect(() => {
@@ -86,6 +88,7 @@ export default function TargetsTab({
         ? api.getTargets({ project_id: selectedProject, period_id: parentId })
         : Promise.resolve([]),
     ]).then(([m, t, campaignT]) => {
+      setCopySource(null); // reset on every load
       setMetrics(m);
 
       const tMap    = {};
@@ -135,6 +138,35 @@ export default function TargetsTab({
       setTypes(typeMap);
       setInverses(invMap);
       setCampaignTotals(cTotals);
+
+      // Check if we should offer copy-forward
+      const hasAnyTarget = m.some(metric =>
+        t.find(x => x.metric_id === metric.id && x.period_id === selectedPeriodId && x.weekly_target > 0)
+      );
+      if (!hasAnyTarget && m.length > 0) {
+        const selPer = periodList.find(p => p.id === selectedPeriodId);
+        const sameLevel = selPer?.parent_id
+          ? periodList.filter(p => p.parent_id === selPer.parent_id)
+          : periodList.filter(p => !p.parent_id);
+        const sorted = [...sameLevel].sort((a, b) =>
+          String(a.start_date).localeCompare(String(b.start_date))
+        );
+        const idx = sorted.findIndex(p => p.id === selectedPeriodId);
+        const prev = idx > 0 ? sorted[idx - 1] : null;
+        if (prev) {
+          api.getTargets({ project_id: selectedProject, period_id: prev.id }).then(prevTargets => {
+            if (prevTargets.length > 0) {
+              setCopySource({ period: prev, targets: prevTargets });
+            } else {
+              setCopySource(null);
+            }
+          }).catch(() => setCopySource(null));
+        } else {
+          setCopySource(null);
+        }
+      } else {
+        setCopySource(null);
+      }
     }).catch(e => setError(e.message));
   }, [selectedProject, selectedPeriodId, periodList]);
 
@@ -208,6 +240,35 @@ export default function TargetsTab({
       setAddingMetric(false);
     } catch (e) { setError(e.message); }
   };
+
+  async function handleCopyTargets() {
+    if (!copySource || copying) return;
+    setCopying(true);
+    try {
+      await Promise.all(
+        copySource.targets.map(ct =>
+          api.upsertTarget({
+            metric_id:     ct.metric_id,
+            period_id:     selectedPeriodId,
+            weekly_target: ct.weekly_target,
+          })
+        )
+      );
+      // Reload targets — once targets exist, copySource will be cleared by the effect
+      const [m, t] = await Promise.all([
+        api.getMetrics(selectedProject),
+        api.getTargets({ project_id: selectedProject, period_id: selectedPeriodId }),
+      ]);
+      const tMap = {};
+      t.forEach(tgt => { tMap[tgt.metric_id] = String(tgt.weekly_target); });
+      setTargets(tMap);
+      setCopySource(null);
+    } catch (err) {
+      setError('Failed to copy targets. Please try again.');
+    } finally {
+      setCopying(false);
+    }
+  }
 
   // ── Period dropdown groups ────────────────────────────────────────────────
   const campaigns = periodList.filter(p => !p.parent_id);
@@ -317,6 +378,19 @@ export default function TargetsTab({
             </>
           )}
         </div>
+      )}
+
+      {/* Copy-forward button */}
+      {copySource && (
+        <button
+          type="button"
+          onClick={handleCopyTargets}
+          disabled={copying}
+          className="flex items-center gap-2 text-sm font-medium text-stone-600 hover:text-stone-900 bg-stone-50 hover:bg-stone-100 border border-stone-200 rounded-lg px-3 py-2 mb-3 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          <span>←</span>
+          <span>{copying ? 'Copying…' : `Copy targets from ${copySource.period.name || 'previous period'}`}</span>
+        </button>
       )}
 
       {/* ── CAMPAIGN VIEW ── set totals + distribution type + inverse ── */}
