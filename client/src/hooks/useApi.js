@@ -64,6 +64,9 @@ export const api = {
   },
   upsertEntry: (body) => request('/entries', { method: 'POST', body }),
 
+  // Dashboard summary — all projects in one request
+  getDashboardSummary: () => request('/dashboard/summary'),
+
   // Project (data + entries for a period)
   getProject: (id, period_id) => request(`/project/${id}?period_id=${period_id}`),
 

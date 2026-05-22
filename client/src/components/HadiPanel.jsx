@@ -56,7 +56,7 @@ export default function HadiPanel({ initial, onSave, onDelete, onClose }) {
   const labelCls = 'block text-xs font-medium text-stone-500 mb-1';
 
   return (
-    <div className="fixed inset-0 z-40 flex justify-end" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex justify-end" onClick={onClose}>
       {/* backdrop */}
       <div className="absolute inset-0 bg-black/20" />
 
