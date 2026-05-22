@@ -70,19 +70,19 @@ export async function computeProjectStatuses() {
     );
     if (metrics.length === 0) continue;
 
-    const metricIds = metrics.map(m => `'${m.id}'`).join(',');
+    const metricIdArray = metrics.map(m => m.id);
 
     const [{ rows: targets }, { rows: entrySums }] = await Promise.all([
       query(
-        `SELECT * FROM targets WHERE period_id = $1 AND metric_id IN (${metricIds})`,
-        [period.id]
+        `SELECT * FROM targets WHERE period_id = $1 AND metric_id = ANY($2)`,
+        [period.id, metricIdArray]
       ),
       query(
         `SELECT metric_id, SUM(value)::numeric AS actual
          FROM daily_entries
-         WHERE period_id = $1 AND metric_id IN (${metricIds})
+         WHERE period_id = $1 AND metric_id = ANY($2)
          GROUP BY metric_id`,
-        [period.id]
+        [period.id, metricIdArray]
       ),
     ]);
 

@@ -24,6 +24,7 @@ async function triggerSmartAlerts(metric_id, period_id) {
     const { rows: [project] } = await query(
       'SELECT name FROM projects WHERE id = $1', [metric.project_id]
     );
+    if (!project) return;
 
     // Get all metrics for this project with pace data
     const { rows: metrics } = await query(
@@ -31,17 +32,17 @@ async function triggerSmartAlerts(metric_id, period_id) {
     );
     if (!metrics.length) return;
 
-    const metricIds = metrics.map(m => `'${m.id}'`).join(',');
+    const metricIdArray = metrics.map(m => m.id);
     const [{ rows: targets }, { rows: entrySums }] = await Promise.all([
       query(
-        `SELECT * FROM targets WHERE period_id = $1 AND metric_id IN (${metricIds})`,
-        [period_id]
+        `SELECT * FROM targets WHERE period_id = $1 AND metric_id = ANY($2)`,
+        [period_id, metricIdArray]
       ),
       query(
         `SELECT metric_id, SUM(value)::numeric AS actual
-         FROM daily_entries WHERE period_id = $1 AND metric_id IN (${metricIds})
+         FROM daily_entries WHERE period_id = $1 AND metric_id = ANY($2)
          GROUP BY metric_id`,
-        [period_id]
+        [period_id, metricIdArray]
       ),
     ]);
 

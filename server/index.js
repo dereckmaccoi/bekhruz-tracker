@@ -212,6 +212,9 @@ app.use(cors());
 app.use(express.json());
 
 // ── Telegram auth ─────────────────────────────────────────────────────────────
+// Health check — exempt from auth so Railway can verify the deployment
+app.get('/api/health', (_, res) => res.json({ ok: true }));
+
 // Validate endpoint — lightweight ping to confirm initData is accepted
 app.post('/api/auth/validate', telegramAuthMiddleware, (req, res) => {
   res.json({ ok: true, user: req.telegramUser });
@@ -229,7 +232,6 @@ app.use('/api/entries', entriesRouter);
 app.use('/api/dashboard', dashboardRouter);
 app.use('/api/hypotheses', hypothesesRouter);
 app.use('/api/project', dashboardRouter);
-app.get('/api/health', (_, res) => res.json({ ok: true }));
 
 // ── Telegram bot webhook ──────────────────────────────────────────────────────
 app.post('/bot/webhook', (req, res) => {

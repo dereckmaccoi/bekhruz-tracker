@@ -1,6 +1,10 @@
 import crypto from 'crypto';
 
 export function telegramAuthMiddleware(req, res, next) {
+  if (!process.env.TELEGRAM_BOT_TOKEN) {
+    return res.status(503).json({ error: 'bot_not_configured' });
+  }
+
   const initData = req.headers['x-telegram-init-data'];
   if (!initData) return res.status(401).json({ error: 'invalid_init_data' });
 

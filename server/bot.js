@@ -66,6 +66,10 @@ export function handleUpdate(body) {
 /** Register the webhook URL with Telegram. Called once after the server starts. */
 export async function setupWebhook() {
   if (!bot) return;
+  if (!process.env.BASE_URL || !process.env.TELEGRAM_WEBHOOK_SECRET) {
+    console.warn('setupWebhook: BASE_URL or TELEGRAM_WEBHOOK_SECRET not set — skipping');
+    return;
+  }
   const url = `${process.env.BASE_URL}/bot/webhook?secret=${process.env.TELEGRAM_WEBHOOK_SECRET}`;
   try {
     await bot.setWebhook(url);
