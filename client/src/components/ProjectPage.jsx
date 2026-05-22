@@ -6,6 +6,7 @@ import { colorKey, formatNum, COLOR_CLASSES, dailyTarget, detectActivePeriod, pa
 import MetricBar from './shared/MetricBar.jsx';
 import DayChart from './shared/DayChart.jsx';
 import HistoryTable from './shared/HistoryTable.jsx';
+import TrendChart from './shared/TrendChart.jsx';
 import { useLang } from '../i18n/LangContext.jsx';
 
 // ── Period Comparison ────────────────────────────────────────────────────────
@@ -321,6 +322,9 @@ export default function ProjectPage() {
       ? sortedPeriods.filter(p => p.parent_id === period.parent_id)
       : sortedPeriods.filter(p => !p.parent_id);
 
+  // Last 12 same-level periods for trend chart (oldest → newest)
+  const trendPeriods = siblingPeriods.slice(-12);
+
   const currentIdx  = siblingPeriods.findIndex(p => p.id === period?.id);
   const prevPeriod  = siblingPeriods[currentIdx - 1] ?? null;
   const nextPeriod  = siblingPeriods[currentIdx + 1] ?? null;
@@ -544,6 +548,17 @@ export default function ProjectPage() {
         <PeriodComparison
           metrics={metrics}
           periods={sortedPeriods}
+          allEntries={entries}
+          allTargets={targets}
+          currentPeriodId={period?.id}
+        />
+      )}
+
+      {/* 12-week trend chart */}
+      {tab === 'week' && hasTargets && trendPeriods.length >= 2 && (
+        <TrendChart
+          metrics={metrics}
+          periods={trendPeriods}
           allEntries={entries}
           allTargets={targets}
           currentPeriodId={period?.id}
