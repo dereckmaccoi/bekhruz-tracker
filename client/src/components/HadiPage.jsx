@@ -80,11 +80,14 @@ export default function HadiPage() {
   const [filterProject, setFilterProject] = useState('');
   const [panelOpen, setPanelOpen] = useState(false);
   const [editing, setEditing] = useState(null);
+  const [error, setError] = useState(null);
 
   const load = () => {
     setLoading(true);
+    setError(null);
     api.getHypotheses()
       .then(setRows)
+      .catch(() => setError('Failed to load hypotheses. Please try again.'))
       .finally(() => setLoading(false));
   };
 
@@ -129,22 +132,34 @@ export default function HadiPage() {
   }, [filtered]);
 
   const handleSave = async (payload) => {
-    if (editing?.id) {
-      await api.updateHypothesis(editing.id, payload);
-    } else {
-      await api.createHypothesis(payload);
+    try {
+      if (editing?.id) {
+        await api.updateHypothesis(editing.id, payload);
+      } else {
+        await api.createHypothesis(payload);
+      }
+      load();
+    } catch {
+      setError('Failed to save. Please try again.');
     }
-    load();
   };
 
   const handleDelete = async (id) => {
-    await api.deleteHypothesis(id);
-    load();
+    try {
+      await api.deleteHypothesis(id);
+      load();
+    } catch {
+      setError('Failed to delete. Please try again.');
+    }
   };
 
   const handleStatusChange = async (id, status) => {
-    await api.updateHypothesis(id, { status });
-    setRows(prev => prev.map(r => r.id === id ? { ...r, status } : r));
+    try {
+      await api.updateHypothesis(id, { status });
+      load();
+    } catch {
+      setError('Failed to update status. Please try again.');
+    }
   };
 
   const openCreate = () => { setEditing(null); setPanelOpen(true); };
@@ -240,6 +255,12 @@ export default function HadiPage() {
           ))}
         </select>
       </div>
+
+      {error && (
+        <div className="mb-4 px-4 py-3 bg-[#FCEBEB] text-[#791F1F] text-sm rounded-lg border border-[#E24B4A]">
+          {error}
+        </div>
+      )}
 
       {/* Table */}
       {loading ? (

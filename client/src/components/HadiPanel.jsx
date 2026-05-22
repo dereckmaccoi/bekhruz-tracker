@@ -35,8 +35,10 @@ export default function HadiPanel({ initial, onSave, onDelete, onClose }) {
     if (!form.hypothesis.trim()) return;
     setSaving(true);
     try {
+      // eslint-disable-next-line no-unused-vars
+      const { id: _id, created_at: _ca, updated_at: _ua, ...formFields } = form;
       const payload = {
-        ...form,
+        ...formFields,
         project_id:       form.project_id       || null,
         action_deadline:  form.action_deadline   || null,
         insight_deadline: form.insight_deadline  || null,
