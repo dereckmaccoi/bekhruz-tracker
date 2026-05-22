@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../hooks/useApi.js';
-import { pacePercent, colorKey, formatNum, COLOR_CLASSES, detectActivePeriod, resolveTarget } from '../utils/calculations.js';
+import { pacePercent, weeklyPercent, colorKey, formatNum, COLOR_CLASSES, detectActivePeriod, resolveTarget } from '../utils/calculations.js';
 import { useLang } from '../i18n/LangContext.jsx';
 import { useProjects } from '../context/ProjectsContext.jsx';
 
@@ -133,6 +133,43 @@ function ProjectCard({ project, period, data, periods = [] }) {
   const c = COLOR_CLASSES[color] || COLOR_CLASSES.gray;
   const hasTargets = targets.length > 0;
 
+  // Period-over-period badge
+  const sameLevelPeriods = period?.parent_id
+    ? (periods || []).filter(p => p.parent_id === period.parent_id)
+    : (periods || []).filter(p => !p.parent_id);
+  const sortedSame = [...sameLevelPeriods].sort((a, b) =>
+    String(a.start_date).localeCompare(String(b.start_date))
+  );
+  const currentIdx = sortedSame.findIndex(p => p.id === period.id);
+  const prevPeriod = currentIdx > 0 ? sortedSame[currentIdx - 1] : null;
+
+  let popBadge = null;
+  if (prevPeriod && avgPct !== null) {
+    const prevStart = String(prevPeriod.start_date).slice(0, 10);
+    const prevEnd   = String(prevPeriod.end_date).slice(0, 10);
+    const prevEntries = allEntries.filter(e => {
+      const d = String(e.date).slice(0, 10);
+      return d >= prevStart && d <= prevEnd;
+    });
+    const prevActualMap = {};
+    prevEntries.forEach(e => {
+      prevActualMap[e.metric_id] = (prevActualMap[e.metric_id] || 0) + Number(e.value);
+    });
+    // Prev period is always completed (it's in the past) — use weeklyPercent
+    const prevPcts = metrics.map(m => {
+      const tgt = targetMap[m.id];
+      if (!tgt) return null;
+      return weeklyPercent(prevActualMap[m.id] || 0, tgt.weekly_target, !!m.is_inverse);
+    }).filter(p => p !== null);
+    const prevAvgPct = prevPcts.length
+      ? Math.round(prevPcts.reduce((a, b) => a + b, 0) / prevPcts.length)
+      : null;
+    if (prevAvgPct !== null) {
+      const delta = avgPct - prevAvgPct;
+      popBadge = { delta, prevName: prevPeriod.name };
+    }
+  }
+
   // Campaign badge: average campaign-completion % for campaign-type metrics only
   const campaignPeriod = period?.parent_id
     ? (periods || []).find(p => p.id === period.parent_id) ?? null
@@ -189,14 +226,33 @@ function ProjectCard({ project, period, data, periods = [] }) {
       <div className="h-1" style={{ backgroundColor: project.color }} />
 
       <div className="p-5 space-y-3">
-        {/* Top row: project name + week badge */}
-        <div className="flex items-center justify-between gap-2">
+        {/* Top row: project name + week badge + delta badge */}
+        <div className="flex items-center justify-between gap-2 flex-wrap">
           <span className="font-bold text-stone-900 text-base leading-tight">{project.name}</span>
-          {hasTargets && avgPct !== null && (
-            <span className={`text-xs font-semibold px-2 py-0.5 rounded-lg ${c.tag}`}>
-              {avgPct}% week
-            </span>
-          )}
+          <div className="flex items-center gap-1.5 flex-wrap">
+            {hasTargets && avgPct !== null && (
+              <span className={`text-xs font-semibold px-2 py-0.5 rounded-lg ${c.tag}`}>
+                {avgPct}% week
+              </span>
+            )}
+            {popBadge !== null && (() => {
+              const { delta, prevName } = popBadge;
+              const isGreen = delta > 5;
+              const isRed   = delta < -5;
+              const arrow   = isGreen ? '↑' : isRed ? '↓' : '→';
+              const sign    = delta > 0 ? '+' : '';
+              const cls     = isGreen
+                ? 'bg-[#E1F5EE] text-[#085041] border border-[#1D9E75]'
+                : isRed
+                ? 'bg-[#FCEBEB] text-[#791F1F] border border-[#E24B4A]'
+                : 'bg-[#F1EFE8] text-[#444441] border border-stone-300';
+              return (
+                <span className={`text-xs font-semibold px-2 py-0.5 rounded-lg ${cls}`}>
+                  {arrow} {sign}{delta}% vs {prevName}
+                </span>
+              );
+            })()}
+          </div>
         </div>
 
         {/* Campaign progress bar — primary element */}
