@@ -237,7 +237,7 @@ async function handleVoice(msg) {
     const base64  = Buffer.from(buffer).toString('base64');
 
     // Ask Gemini to extract project, date, and metric values
-    const model  = gemini.getGenerativeModel({ model: 'gemini-2.0-flash' });
+    const model  = gemini.getGenerativeModel({ model: 'gemini-2.0-flash-lite' });
     const prompt = `You are a data entry assistant for a performance tracker.
 
 Today is ${today}. Yesterday was ${yesterday}.
