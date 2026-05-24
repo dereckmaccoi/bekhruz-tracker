@@ -242,31 +242,38 @@ async function handleVoice(msg) {
     const buffer  = await resp.arrayBuffer();
     const base64  = Buffer.from(buffer).toString('base64');
 
-    // Ask Gemini to extract project, date, and metric values
+    // Ask Gemini to detect intent + extract data
     const model  = gemini.getGenerativeModel({ model: 'gemini-2.5-flash' });
-    const prompt = `You are a data entry assistant for a performance tracker.
+    const prompt = `You are an assistant for a performance tracker app.
 
 Today is ${today}. Yesterday was ${yesterday}.
 
 Available projects and their metrics:
 ${projectContext}
 
-Listen to the voice message. The user is logging their daily metrics.
-They will say: a project name (or shorthand like "FC" for Full Contact), a date reference ("today", "yesterday", or a specific date), and metric values — either in order or by name.
+Listen to the voice message and determine the user's intent.
 
-Return ONLY valid JSON in this exact shape, no explanation, no markdown:
+If the user is LOGGING data (stating metric numbers for a project/date):
+Return ONLY valid JSON:
 {
+  "intent": "log",
   "project": "<exact project name from the list above, or null if unclear>",
   "date": "<YYYY-MM-DD>",
-  "values": {
-    "<exact metric name>": <number or null>
-  }
+  "values": { "<exact metric name>": <number or null> }
+}
+
+If the user is ASKING A QUESTION about their data (e.g. "when did I last fill", "show me stats", "what was my result"):
+Return ONLY valid JSON:
+{
+  "intent": "query",
+  "query_type": "last_entry",
+  "project": "<project name or null>"
 }
 
 Rules:
-- Resolve "today" to ${today}, "yesterday" to ${yesterday}, weekday names to the most recent past occurrence.
-- Only include metrics that were clearly mentioned. Set others to null.
-- Match project names loosely (e.g. "FC" → "Full Contact", "sales" → "Sales Calls").`;
+- Resolve "today" → ${today}, "yesterday" → ${yesterday}, weekday names → most recent past occurrence.
+- Match project names loosely ("FC" → "Full Contact").
+- No explanation, no markdown — raw JSON only.`;
 
     const result  = await model.generateContent([
       { inlineData: { mimeType: 'audio/ogg', data: base64 } },
@@ -275,6 +282,43 @@ Rules:
 
     const raw     = result.response.text().trim().replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
     const parsed  = JSON.parse(raw);
+
+    // ── Handle query intent ───────────────────────────────────────────────────
+    if (parsed.intent === 'query') {
+      const project = projects.find(p =>
+        p.name.toLowerCase() === (parsed.project || '').toLowerCase()
+      );
+
+      if (parsed.query_type === 'last_entry') {
+        if (!project) {
+          await bot.editMessageText(
+            `⚠️ Couldn't identify the project. Try asking e.g. "when did I last fill Full Contact?"`,
+            { chat_id: chatId, message_id: thinking.message_id }
+          );
+          return;
+        }
+        const { rows } = await query(
+          `SELECT MAX(de.date) AS last_date
+           FROM daily_entries de
+           JOIN metrics m ON de.metric_id = m.id
+           WHERE m.project_id = $1 AND de.value IS NOT NULL`,
+          [project.id]
+        );
+        const lastDate = rows[0]?.last_date;
+        const answer = lastDate
+          ? `📅 Last entry for *${project.name}*: *${fmtDateLong(toDateStr(lastDate))}*`
+          : `📅 No entries found for *${project.name}* yet.`;
+        await bot.editMessageText(answer, {
+          chat_id: chatId, message_id: thinking.message_id, parse_mode: 'Markdown',
+        });
+      } else {
+        await bot.editMessageText(
+          `🤔 I heard a question but I'm not sure how to answer it yet. Try /log to enter data manually.`,
+          { chat_id: chatId, message_id: thinking.message_id }
+        );
+      }
+      return;
+    }
 
     // Resolve project
     const project = projects.find(p =>
