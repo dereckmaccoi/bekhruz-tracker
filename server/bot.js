@@ -1,9 +1,11 @@
 import TelegramBot from 'node-telegram-bot-api';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 import { computeProjectStatuses, buildStatusMessage } from './lib/notifications.js';
 import { query } from './lib/db.js';
 
 // Guard: bot is null when TELEGRAM_BOT_TOKEN is not configured
 let bot = null;
+let gemini = null;
 
 function getAllowedIds() {
   return (process.env.TELEGRAM_ALLOWED_IDS || '')
@@ -200,17 +202,169 @@ async function showConfirmation(chatId, userId) {
   );
 }
 
+// ── Voice message → Gemini → confirmation ────────────────────────────────────
+async function handleVoice(msg) {
+  const userId = msg.from.id;
+  const chatId = msg.chat.id;
+  if (!getAllowedIds().includes(userId)) return;
+  if (!gemini) {
+    await bot.sendMessage(chatId, '⚠️ Voice logging is not configured (GEMINI_API_KEY missing).');
+    return;
+  }
+
+  const thinking = await bot.sendMessage(chatId, '🎙️ Processing your voice message…');
+
+  try {
+    // Load all projects + metrics for Gemini context
+    const [{ rows: projects }, { rows: metrics }] = await Promise.all([
+      query('SELECT * FROM projects ORDER BY sort_order'),
+      query('SELECT * FROM metrics ORDER BY project_id, sort_order'),
+    ]);
+
+    const projectContext = projects.map(p => {
+      const names = metrics.filter(m => m.project_id === p.id).map(m => m.name).join(', ');
+      return `- ${p.name}: ${names}`;
+    }).join('\n');
+
+    const today     = new Date().toISOString().slice(0, 10);
+    const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+
+    // Download voice file from Telegram
+    const file    = await bot.getFile(msg.voice.file_id);
+    const fileUrl = `https://api.telegram.org/file/bot${process.env.TELEGRAM_BOT_TOKEN}/${file.file_path}`;
+    const resp    = await fetch(fileUrl);
+    const buffer  = await resp.arrayBuffer();
+    const base64  = Buffer.from(buffer).toString('base64');
+
+    // Ask Gemini to extract project, date, and metric values
+    const model  = gemini.getGenerativeModel({ model: 'gemini-2.0-flash' });
+    const prompt = `You are a data entry assistant for a performance tracker.
+
+Today is ${today}. Yesterday was ${yesterday}.
+
+Available projects and their metrics:
+${projectContext}
+
+Listen to the voice message. The user is logging their daily metrics.
+They will say: a project name (or shorthand like "FC" for Full Contact), a date reference ("today", "yesterday", or a specific date), and metric values — either in order or by name.
+
+Return ONLY valid JSON in this exact shape, no explanation, no markdown:
+{
+  "project": "<exact project name from the list above, or null if unclear>",
+  "date": "<YYYY-MM-DD>",
+  "values": {
+    "<exact metric name>": <number or null>
+  }
+}
+
+Rules:
+- Resolve "today" to ${today}, "yesterday" to ${yesterday}, weekday names to the most recent past occurrence.
+- Only include metrics that were clearly mentioned. Set others to null.
+- Match project names loosely (e.g. "FC" → "Full Contact", "sales" → "Sales Calls").`;
+
+    const result  = await model.generateContent([
+      { inlineData: { mimeType: 'audio/ogg', data: base64 } },
+      prompt,
+    ]);
+
+    const raw     = result.response.text().trim().replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+    const parsed  = JSON.parse(raw);
+
+    // Resolve project
+    const project = projects.find(p =>
+      p.name.toLowerCase() === (parsed.project || '').toLowerCase()
+    );
+    if (!project) {
+      await bot.editMessageText(
+        `⚠️ Couldn't identify the project from your message ("${parsed.project || '?'}"). Try /log instead.`,
+        { chat_id: chatId, message_id: thinking.message_id }
+      );
+      return;
+    }
+
+    const date = parsed.date || today;
+
+    // Resolve active period
+    const { rows: periodsRows } = await query(
+      'SELECT * FROM periods WHERE (project_id = $1 OR project_id IS NULL) ORDER BY start_date',
+      [project.id]
+    );
+    const period = detectActivePeriod(periodsRows, date);
+    if (!period) {
+      await bot.editMessageText('⚠️ No active period found for that project/date.', {
+        chat_id: chatId, message_id: thinking.message_id,
+      });
+      return;
+    }
+
+    // Map metric names → IDs, filter nulls
+    const projectMetrics = metrics.filter(m => m.project_id === project.id);
+    const values = {};
+    projectMetrics.forEach(m => {
+      const v = parsed.values?.[m.name];
+      if (v !== null && v !== undefined && !isNaN(Number(v))) {
+        values[m.id] = Number(v);
+      }
+    });
+
+    // Store session for the shared confirm/save flow
+    sessions.set(userId, {
+      step: 'confirm',
+      chatId,
+      projectId: project.id,
+      projectName: project.name,
+      date,
+      periodId: period.id,
+      metrics: projectMetrics,
+      values,
+    });
+
+    // Show confirmation — edit the "processing" message in place
+    const lines = projectMetrics.map(m => {
+      const v = values[m.id];
+      return v !== undefined ? `${m.name}: *${fmtNum(v)}*` : `${m.name}: —`;
+    }).join('\n');
+
+    await bot.editMessageText(
+      `📋 *${project.name}* · ${fmtDateLong(date)}\n\n${lines}\n\nSave this?`,
+      {
+        chat_id: chatId,
+        message_id: thinking.message_id,
+        parse_mode: 'Markdown',
+        reply_markup: {
+          inline_keyboard: [[
+            { text: '💾 Save',   callback_data: 'log_confirm_save' },
+            { text: '❌ Cancel', callback_data: 'log_confirm_cancel' },
+          ]],
+        },
+      }
+    );
+  } catch (e) {
+    console.error('handleVoice error:', e.message);
+    await bot.editMessageText(`⚠️ Couldn't process audio: ${e.message}`, {
+      chat_id: chatId, message_id: thinking.message_id,
+    });
+  }
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 
 if (process.env.TELEGRAM_BOT_TOKEN) {
   bot = new TelegramBot(process.env.TELEGRAM_BOT_TOKEN, { polling: false });
+
+  if (process.env.GEMINI_API_KEY) {
+    gemini = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+    console.log('Gemini voice logging enabled');
+  } else {
+    console.warn('GEMINI_API_KEY not set — voice logging disabled');
+  }
 
   // /start
   bot.onText(/\/start/, async (msg) => {
     if (!getAllowedIds().includes(msg.from.id)) return;
     await bot.sendMessage(
       msg.chat.id,
-      '👋 Welcome to Bekhruz Tracker\n\nUse /status to see current pace\nUse /log to enter today\'s data\n\nOr open the app:',
+      '👋 Welcome to Bekhruz Tracker\n\nUse /status to see current pace\nUse /log to enter today\'s data\nOr send a 🎙️ voice message to log hands-free\n\nOr open the app:',
       {
         reply_markup: {
           inline_keyboard: [[
@@ -243,6 +397,9 @@ if (process.env.TELEGRAM_BOT_TOKEN) {
       await bot.sendMessage(msg.chat.id, '⚠️ Could not start log flow. Try again.');
     }
   });
+
+  // Voice messages — hands-free logging via Gemini
+  bot.on('voice', handleVoice);
 
   // Inline button taps (callback_query)
   bot.on('callback_query', async (cq) => {
@@ -292,10 +449,10 @@ if (process.env.TELEGRAM_BOT_TOKEN) {
 
     const text = msg.text.trim();
 
-    // Skip with '-' or 'skip' or '0'
+    // Skip with '-' or 'skip'
     let value = null;
     if (text === '-' || text.toLowerCase() === 'skip') {
-      value = null; // skip — don't save this metric
+      value = null;
     } else {
       const num = parseFloat(text.replace(/\s+/g, '').replace(',', '.'));
       if (isNaN(num) || num < 0) {
@@ -316,10 +473,9 @@ if (process.env.TELEGRAM_BOT_TOKEN) {
     sessions.set(userId, { ...sess, metricIdx: nextIdx, values: newValues });
 
     if (nextIdx >= sess.metrics.length) {
-      // All metrics collected — show confirmation
       await showConfirmation(msg.chat.id, userId);
     } else {
-      await askMetric(msg.chat.id, null, userId, false /* send new message */);
+      await askMetric(msg.chat.id, null, userId, false);
     }
   });
 
