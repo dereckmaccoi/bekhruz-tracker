@@ -36,17 +36,23 @@ function fmtNum(n) {
   return Math.round(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
 }
 
+// Normalise a pg date value (Date object or string) to YYYY-MM-DD
+function toDateStr(v) {
+  if (!v) return '';
+  return (v instanceof Date ? v.toISOString() : String(v)).slice(0, 10);
+}
+
 // Detect active period from a list (same logic as client)
 function detectActivePeriod(periods, forDate) {
   if (!periods.length) return null;
   const d = forDate || new Date().toISOString().slice(0, 10);
   const child = periods.find(p => p.parent_id &&
-    p.start_date.slice(0, 10) <= d && p.end_date.slice(0, 10) >= d);
+    toDateStr(p.start_date) <= d && toDateStr(p.end_date) >= d);
   if (child) return child;
   const active = periods.find(p =>
-    p.start_date.slice(0, 10) <= d && p.end_date.slice(0, 10) >= d);
+    toDateStr(p.start_date) <= d && toDateStr(p.end_date) >= d);
   if (active) return active;
-  const past = periods.filter(p => p.end_date.slice(0, 10) < d);
+  const past = periods.filter(p => toDateStr(p.end_date) < d);
   return past.length > 0 ? past[past.length - 1] : (periods[0] || null);
 }
 
