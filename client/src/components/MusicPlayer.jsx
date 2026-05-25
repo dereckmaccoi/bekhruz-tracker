@@ -20,7 +20,7 @@ const TRACKS = [
 const TABS = ['Stations', 'Playlist'];
 
 export default function MusicPlayer() {
-  const [open, setOpen]             = useState(true);
+  const [open, setOpen]             = useState(false);
   const [visible, setVisible]       = useState(true);
   const [tab, setTab]               = useState(1);       // start on Playlist
   const [stationIdx, setStationIdx] = useState(0);
