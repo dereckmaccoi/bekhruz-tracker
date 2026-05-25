@@ -1,11 +1,5 @@
 import { useState, useEffect } from 'react';
-
-const PROJECTS = [
-  { id: 'tsb',  name: 'TSB' },
-  { id: 'fc',   name: 'Full Contact' },
-  { id: 'mc',   name: 'Milliard Club' },
-  { id: 'sd',   name: 'Sales Doctor' },
-];
+import { useProjects } from '../context/ProjectsContext.jsx';
 
 const STATUSES = [
   { value: 'not_started', label: 'Not started' },
@@ -21,6 +15,7 @@ const EMPTY = {
 };
 
 export default function HadiPanel({ initial, onSave, onDelete, onClose }) {
+  const { projects } = useProjects();
   const [form, setForm] = useState(EMPTY);
   const [saving, setSaving] = useState(false);
 
@@ -133,7 +128,7 @@ export default function HadiPanel({ initial, onSave, onDelete, onClose }) {
               <label className={labelCls}>📁 Project</label>
               <select className={inputCls} value={form.project_id} onChange={e => set('project_id', e.target.value)}>
                 <option value="">— All projects —</option>
-                {PROJECTS.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
               </select>
             </div>
             <div>
