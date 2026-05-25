@@ -25,8 +25,13 @@ export default function Workshop() {
   const [projectActivePeriod, setProjectActivePeriod] = useState(null);
 
   useEffect(() => {
-    // Pick first project if nothing was pre-selected
-    if (!initProject && projects.length > 0) setSelectedProject(prev => prev || projects[0].id);
+    if (projects.length === 0) return;
+    setSelectedProject(prev => {
+      // Keep current selection if it still exists in the list
+      if (prev && projects.some(p => p.id === prev)) return prev;
+      // Otherwise fall back to first project (handles deletion + initial load)
+      return projects[0].id;
+    });
   }, [projects]);
 
   // Reload periods whenever the selected project changes
