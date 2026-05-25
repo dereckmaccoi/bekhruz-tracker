@@ -33,8 +33,21 @@ router.put('/:id', async (req, res) => {
 });
 
 router.delete('/:id', async (req, res) => {
+  const id = req.params.id;
   try {
-    await query('DELETE FROM projects WHERE id=$1', [req.params.id]);
+    // Delete in dependency order so FK constraints can't block us,
+    // regardless of whether CASCADE is set on the live DB.
+    await query(`
+      DELETE FROM daily_entries
+      WHERE metric_id IN (SELECT id FROM metrics WHERE project_id = $1)
+         OR period_id  IN (SELECT id FROM periods  WHERE project_id = $1)
+    `, [id]);
+    await query(`DELETE FROM targets WHERE metric_id IN (SELECT id FROM metrics WHERE project_id = $1)`, [id]);
+    await query(`DELETE FROM targets WHERE period_id  IN (SELECT id FROM periods  WHERE project_id = $1)`, [id]);
+    await query(`DELETE FROM metrics  WHERE project_id = $1`, [id]);
+    await query(`DELETE FROM periods  WHERE project_id = $1`, [id]);
+    await query(`UPDATE hypotheses SET project_id = NULL WHERE project_id = $1`, [id]);
+    await query(`DELETE FROM projects WHERE id = $1`, [id]);
     res.status(204).end();
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
