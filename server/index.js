@@ -137,6 +137,17 @@ async function runMigrations() {
     await seedInitialData();
     console.log('Seeded initial projects, periods, metrics and targets.');
   }
+
+  // 8. Seed HADI hypotheses — only when SEED_HADI=true env var is set ------
+  if (process.env.SEED_HADI === 'true') {
+    const { rows: hRows } = await query(`SELECT COUNT(*) AS count FROM hypotheses`);
+    if (parseInt(hRows[0].count, 10) === 0) {
+      await seedHadiData();
+      console.log('Seeded 16 HADI hypotheses from Page №1.');
+    } else {
+      console.log(`SEED_HADI=true but ${hRows[0].count} hypotheses already exist — skipping.`);
+    }
+  }
 }
 
 async function seedInitialData() {
@@ -199,6 +210,107 @@ async function seedInitialData() {
        SELECT metric_id, $1, weekly_target FROM targets WHERE period_id = 'h1_may26'
        ON CONFLICT (metric_id, period_id) DO NOTHING`,
       [period_id]
+    );
+  }
+}
+
+async function seedHadiData() {
+  // 16 hypotheses extracted from Google Sheets Page №1
+  // Fields: [project_id, hypothesis, point_a, point_b, action_deadline,
+  //          insight_deadline, result, idea_score, success, status, insight, campaign_context]
+  const data = [
+    ['fc', "Agar Random Coffee'da Milliard'dan ham qatnashishyapti deb aytsam, 100 ta odam qatnashadi",
+      '78', '100', null, null, '52', 20, false, 'done',
+      "Juda kech eslatdik, agar oldinroq progrevni boshlaganimizda o'xshagan bo'lar edi", null],
+
+    ['fc', "Saytga pul ko'proq sarflansa, sotuv oshadi",
+      'kuniga $45', 'kuniga $150', null, null, null, 25, false, 'done',
+      "CAC/CPL ko'tarilip ketti 2x ga va bitta raqam baribir o'zgarmadi", null],
+
+    ['sd', 'Qayta sotuvni oshirish uchun dastur guruhlarga video yuborish',
+      null, null, null, null, '0 sotuv', 27, false, 'done',
+      'Umuman ishlamadi, juda sanoqli kishi qiziqish bildirgan', null],
+
+    ['fc', "Agar liddan sotuv CVR 10% konstanta bo'lsa, 250 ta sotuv uchun 2500 ta lid beraman",
+      '1500 ta lid oyiga', '2500 ta lid oyiga', null, null, null, 20, null, 'not_started',
+      null, null],
+
+    ['fc', 'Glossary berish bir oydagilarga',
+      null, null, '2026-03-29', '2026-03-30', 'Positive feedback', 25, false, 'done',
+      "Gave glossary to those who asked. They were grateful. Result is not shocking but ok.",
+      "Churn'ni 20% dan 15% ga tushurish"],
+
+    ['fc', "Kelajakdagi mavzular qanday bo'lishini obunachilarning o'zidan so'rash",
+      null, null, null, null, null, 25, null, 'in_progress',
+      null, "Churn'ni 20% dan 15% ga tushurish"],
+
+    ['fc', 'VSL orqali sotish',
+      '0 ta sotuv', '50 ta sotuv', '2026-04-19', '2026-04-20',
+      "85 ta lid, 7 sotib oldi (8%)", 25, true, 'done',
+      "85 ta lid: 7 sotib oldi (8%), 30 sifatsiz (35%), 21 tadbirkor. CVR o'rtacha — norma 10%. Sotuv hajmi maqsadga yetmadi, lekin CVR tasdiqlandi. O'rtacha natija.",
+      'Martda 250 ta yangi obunachi'],
+
+    ['fc', "Saytga ko'proq urg'u berish",
+      'kuniga $45', 'kuniga $150', '2026-03-22', '2026-03-23', null, 21, false, 'done',
+      "CAC / CPL ko'tarilip ketti 2x ga va bitta raqam baribir o'zgarmadi - CTR - 10% ga qolip ketti",
+      'Martda 250 ta yangi obunachi'],
+
+    ['sd', 'Raqamga target yoqish',
+      "kuniga $10 ads spent", "kuniga $100 agar o'zini oqlasa", '2026-03-15', '2026-03-23',
+      '76 ta liddan 22 tasi sifatli', 30, true, 'done',
+      "76 ta lid keldi: 22 sifatli (29%), 5 zayavka, 5 start. Natija o'rtacha — raqamga target ishladi, lekin konversiya past",
+      'Mart oxirigacha $110 000 sotuv'],
+
+    ['sd', 'Qiymat tanilishiga target yoqish',
+      '$0 ad spent daily', '$15 ad spent daily', '2026-03-31', '2026-04-12',
+      null, 20, null, 'in_progress',
+      "Mavzu: Mart oxirigacha \$110 000 sotuv  |  26.03.2026",
+      'Mart oxirigacha $110 000 sotuv'],
+
+    ['fc', `"Full Contact" - Alisher Isaev bilan bevosita kontakt nomli kampaniya yoqish va Ustoz full contact'da savolga javob berayotganlarini rasmda ko'rsatish`,
+      '0 ta lid', '10 ta lid', '2026-04-01', '2026-04-01', '0 ta lid', 25, false, 'done',
+      'Ishlamadi rasm format',
+      'Mart oxirigacha $110 000 sotuv'],
+
+    ['sd', 'Ustoz bilan VSL olish va bu orqali sotuvni amalga oshirish',
+      '0 ta sotuv', '10 ta sotuv', '2026-03-31', '2026-05-15',
+      null, 25, null, 'not_started',
+      "Mavzu: Mart oxirigacha \$110 000 sotuv  |  26.03.2026",
+      "100.000 bazani bitta joyga yig'ish"],
+
+    ['sd', "FC'dan 15k, SD'dan 25k bazani yig'ish",
+      '0k baza', '1k baza', '2026-03-31', '2026-05-15',
+      null, 25, null, 'in_progress',
+      "Mavzu: 100.000 bazani bitta joyga yig'ish  |  26.03.2026",
+      'Aprelda 250 ta yangi obunachi'],
+
+    ['fc', 'Full Contact reklamasi Sales Doctor akkauntida ishga tushirilsa, sifatli lidlar va sotuvlar keladi',
+      "0 ta sotuv (SD akkauntida FC reklama yo'q edi)", 'Sifatli lidlar va sotuvlar',
+      '2026-04-19', '2026-04-20', "81 ta lid, 20 sotib oldi (25%)", 25, true, 'done',
+      "81 ta lid: 20 sotib oldi (25%), 12 yangi lid, 12 aloqa o'rnatilindi. Natija juda kuchli — SD akkauntida FC reklama ishlaydi",
+      'Aprelda 250 ta yangi obunachi'],
+
+    ['sd', 'Sales Doctor reklamasi Milliard akkauntida ishga tushirilsa, sifatli lidlar va sotuvlar keladi',
+      "0 ta sotuv (Milliard akkauntida SD reklama yo'q edi)", 'Sifatli lidlar va sotuvlar',
+      '2026-04-26', '2026-04-27', null, 25, null, 'in_progress',
+      "\$200,000 sotuv — 23-dastur  |  20.04.2026",
+      '$200,000 sotuv — 23-dastur'],
+
+    ['fc', "Barcha sotb olgan obunachi ro'yxatidan LAL yaratib Meta adsda yangi auditoriyaga reklama berish",
+      'CAC = $22, keng targeting ishlatilmoqda', 'CAC ni $15 gacha tushirish, 250 yangi obunachi qo\'shish',
+      '2026-04-25', '2026-05-02', null, 25, null, 'not_started',
+      "Mavzu: Mayda 250 ta yangi obunachi  |  24.04.2026",
+      'Mayda 250 ta yangi obunachi'],
+  ];
+
+  for (const [pid, hyp, pa, pb, ad, id, result, score, succ, status, insight, campaign] of data) {
+    await query(
+      `INSERT INTO hypotheses
+         (project_id, hypothesis, point_a, point_b, action_deadline, insight_deadline,
+          responsible, result, idea_score, success, status, insight, campaign_context)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)`,
+      [pid, hyp, pa, pb, ad, id, 'Bekhruz Rustamjanov',
+       result, score, succ, status, insight, campaign]
     );
   }
 }
