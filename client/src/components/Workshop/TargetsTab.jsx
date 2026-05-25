@@ -393,7 +393,8 @@ export default function TargetsTab({
       {/* ── CAMPAIGN VIEW ── set totals + distribution type + inverse ── */}
       {selectedPeriodId && !noSelectable && !isSubPeriod && (
         <div className="bg-white border border-stone-200 rounded-xl overflow-hidden">
-          <table className="w-full text-sm">
+          <div className="overflow-x-auto">
+          <table className="w-full text-sm min-w-[560px]">
             <thead>
               <tr className="bg-stone-50 border-b border-stone-200">
                 <th className="text-left px-4 py-2.5 text-stone-500 font-medium">Metric</th>
@@ -516,13 +517,15 @@ export default function TargetsTab({
               )}
             </tbody>
           </table>
+          </div>
         </div>
       )}
 
       {/* ── SUB-PERIOD VIEW ── just target + inverse indicator ── */}
       {selectedPeriodId && !noSelectable && isSubPeriod && (
         <div className="bg-white border border-stone-200 rounded-xl overflow-hidden">
-          <table className="w-full text-sm">
+          <div className="overflow-x-auto">
+          <table className="w-full text-sm min-w-[420px]">
             <thead>
               <tr className="bg-stone-50 border-b border-stone-200">
                 <th className="text-left px-4 py-2.5 text-stone-500 font-medium">Metric</th>
@@ -588,6 +591,7 @@ export default function TargetsTab({
               })}
             </tbody>
           </table>
+          </div>
         </div>
       )}
 

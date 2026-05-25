@@ -1,13 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { api } from '../hooks/useApi.js';
+import { useProjects } from '../context/ProjectsContext.jsx';
 import HadiPanel from './HadiPanel.jsx';
-
-const PROJECT_NAMES = {
-  tsb: 'TSB', fc: 'Full Contact', mc: 'Milliard Club', sd: 'Sales Doctor',
-};
-const PROJECT_COLORS = {
-  tsb: '#E24B4A', fc: '#1D9E75', mc: '#7F77DD', sd: '#BA7517',
-};
 
 const STATUS_META = {
   not_started: { label: 'Not started', bg: 'bg-stone-100', text: 'text-stone-500' },
@@ -16,7 +10,6 @@ const STATUS_META = {
 };
 
 function DonutChart({ success, failed, running, total }) {
-  // circumference ≈ 100 when r = 15.9155
   const r = 15.9155;
   const circ = 2 * Math.PI * r;
   const successPct = total ? (success / total) * circ : 0;
@@ -24,21 +17,14 @@ function DonutChart({ success, failed, running, total }) {
   const runningPct = total ? (running / total) * circ : 0;
 
   return (
-    <svg viewBox="0 0 40 40" className="w-16 h-16 -rotate-90">
-      {/* track */}
+    <svg viewBox="0 0 40 40" className="w-12 h-12 -rotate-90 shrink-0">
       <circle cx="20" cy="20" r={r} fill="none" stroke="#e7e5e4" strokeWidth="5" />
-      {/* success (green) */}
       <circle cx="20" cy="20" r={r} fill="none" stroke="#1D9E75" strokeWidth="5"
-        strokeDasharray={`${successPct} ${circ - successPct}`}
-        strokeDashoffset="0" />
-      {/* running (amber) */}
+        strokeDasharray={`${successPct} ${circ - successPct}`} strokeDashoffset="0" />
       <circle cx="20" cy="20" r={r} fill="none" stroke="#EF9F27" strokeWidth="5"
-        strokeDasharray={`${runningPct} ${circ - runningPct}`}
-        strokeDashoffset={`${-successPct}`} />
-      {/* failed (red) */}
+        strokeDasharray={`${runningPct} ${circ - runningPct}`} strokeDashoffset={`${-successPct}`} />
       <circle cx="20" cy="20" r={r} fill="none" stroke="#E24B4A" strokeWidth="5"
-        strokeDasharray={`${failedPct} ${circ - failedPct}`}
-        strokeDashoffset={`${-(successPct + runningPct)}`} />
+        strokeDasharray={`${failedPct} ${circ - failedPct}`} strokeDashoffset={`${-(successPct + runningPct)}`} />
     </svg>
   );
 }
@@ -74,56 +60,38 @@ function StatusDropdown({ value, onChange }) {
   );
 }
 
-function HadiCard({ row, onEdit, onStatusChange }) {
+function HadiCard({ row, onEdit, onStatusChange, projectColor }) {
   return (
-    <div className="px-4 py-3.5 border-b border-stone-50 last:border-0">
-      {/* Top row: project · status badge · deadline */}
-      <div className="flex items-center gap-2 mb-2 flex-wrap">
-        {row.project_id && (
-          <span className="flex items-center gap-1.5 text-xs text-stone-500">
-            <span
-              className="w-2 h-2 rounded-full shrink-0"
-              style={{ backgroundColor: PROJECT_COLORS[row.project_id] || '#999' }}
-            />
-            {PROJECT_NAMES[row.project_id] || row.project_id}
-          </span>
+    <div className="px-4 py-3 border-b border-stone-50 last:border-0">
+      <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+        {row.project_id && projectColor && (
+          <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: projectColor }} />
         )}
-        <StatusDropdown
-          value={row.status}
-          onChange={val => onStatusChange(row.id, val)}
-        />
+        <StatusDropdown value={row.status} onChange={val => onStatusChange(row.id, val)} />
         {row.insight_deadline && (
           <span className="text-xs text-stone-400 ml-auto">
-            {new Date(row.insight_deadline).toLocaleDateString('en-GB', {
-              day: '2-digit',
-              month: 'short',
-            })}
+            {new Date(row.insight_deadline).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}
           </span>
         )}
       </div>
 
-      {/* Hypothesis text */}
       <div className="font-medium text-stone-900 text-sm leading-snug line-clamp-3">
         {row.hypothesis}
       </div>
 
-      {/* Insight snippet */}
       {row.insight && (
         <p className="text-xs text-stone-400 mt-1 line-clamp-2">{row.insight}</p>
       )}
 
-      {/* Responsible + edit button */}
       <div className="flex items-center justify-between gap-2 mt-2">
-        {row.responsible ? (
-          <span className="text-xs text-stone-400">👤 {row.responsible}</span>
-        ) : (
-          <span />
-        )}
+        {row.responsible
+          ? <span className="text-xs text-stone-400">👤 {row.responsible}</span>
+          : <span />
+        }
         <button
           type="button"
           onClick={() => onEdit(row)}
           className="text-stone-400 hover:text-stone-700 p-1 rounded transition-colors"
-          title="Edit"
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
@@ -136,6 +104,7 @@ function HadiCard({ row, onEdit, onStatusChange }) {
 }
 
 export default function HadiPage() {
+  const { projects } = useProjects();
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -144,6 +113,10 @@ export default function HadiPage() {
   const [panelOpen, setPanelOpen] = useState(false);
   const [editing, setEditing] = useState(null);
   const [error, setError] = useState(null);
+
+  // Build lookup maps from live project data
+  const projectColorMap = useMemo(() =>
+    Object.fromEntries(projects.map(p => [p.id, p.color])), [projects]);
 
   const load = () => {
     setLoading(true);
@@ -156,7 +129,6 @@ export default function HadiPage() {
 
   useEffect(() => { load(); }, []);
 
-  // Stats
   const stats = useMemo(() => {
     const done    = rows.filter(r => r.status === 'done');
     const success = done.filter(r => r.success === true).length;
@@ -165,25 +137,21 @@ export default function HadiPage() {
     return { total: rows.length, success, failed, running, doneCount: done.length };
   }, [rows]);
 
-  // Filtered rows
-  const filtered = useMemo(() => {
-    return rows.filter(r => {
-      if (filterStatus  && r.status     !== filterStatus)  return false;
-      if (filterProject && r.project_id !== filterProject) return false;
-      if (search) {
-        const q = search.toLowerCase();
-        return (
-          r.hypothesis?.toLowerCase().includes(q) ||
-          r.campaign_context?.toLowerCase().includes(q) ||
-          r.responsible?.toLowerCase().includes(q) ||
-          r.insight?.toLowerCase().includes(q)
-        );
-      }
-      return true;
-    });
-  }, [rows, search, filterStatus, filterProject]);
+  const filtered = useMemo(() => rows.filter(r => {
+    if (filterStatus  && r.status     !== filterStatus)  return false;
+    if (filterProject && r.project_id !== filterProject) return false;
+    if (search) {
+      const q = search.toLowerCase();
+      return (
+        r.hypothesis?.toLowerCase().includes(q) ||
+        r.campaign_context?.toLowerCase().includes(q) ||
+        r.responsible?.toLowerCase().includes(q) ||
+        r.insight?.toLowerCase().includes(q)
+      );
+    }
+    return true;
+  }), [rows, search, filterStatus, filterProject]);
 
-  // Group by campaign_context
   const groups = useMemo(() => {
     const map = new Map();
     filtered.forEach(r => {
@@ -196,11 +164,8 @@ export default function HadiPage() {
 
   const handleSave = async (payload) => {
     try {
-      if (editing?.id) {
-        await api.updateHypothesis(editing.id, payload);
-      } else {
-        await api.createHypothesis(payload);
-      }
+      if (editing?.id) await api.updateHypothesis(editing.id, payload);
+      else             await api.createHypothesis(payload);
       load();
     } catch {
       setError('Failed to save. Please try again.');
@@ -208,21 +173,13 @@ export default function HadiPage() {
   };
 
   const handleDelete = async (id) => {
-    try {
-      await api.deleteHypothesis(id);
-      load();
-    } catch {
-      setError('Failed to delete. Please try again.');
-    }
+    try { await api.deleteHypothesis(id); load(); }
+    catch { setError('Failed to delete. Please try again.'); }
   };
 
   const handleStatusChange = async (id, status) => {
-    try {
-      await api.updateHypothesis(id, { status });
-      load();
-    } catch {
-      setError('Failed to update status. Please try again.');
-    }
+    try { await api.updateHypothesis(id, { status }); load(); }
+    catch { setError('Failed to update status. Please try again.'); }
   };
 
   const openCreate = () => { setEditing(null); setPanelOpen(true); };
@@ -233,88 +190,82 @@ export default function HadiPage() {
     : null;
 
   return (
-    <div className="p-6 max-w-6xl mx-auto">
+    <div className="px-4 py-4">
 
-      {/* Page header */}
-      <div className="flex items-center justify-between mb-6">
+      {/* Page header — compact for mobile */}
+      <div className="flex items-center justify-between mb-4">
         <div>
-          <h1 className="text-xl font-bold text-stone-900">🚀 HADI Board</h1>
-          <p className="text-sm text-stone-400 mt-0.5">Hypothesis → Action → Data → Insight</p>
+          <h1 className="text-lg font-bold text-stone-900">🚀 HADI Board</h1>
+          <p className="text-xs text-stone-400 mt-0.5">Hypothesis → Action → Data → Insight</p>
         </div>
         <button
           onClick={openCreate}
-          className="flex items-center gap-2 bg-stone-900 text-white text-sm font-medium px-4 py-2.5 rounded-xl hover:bg-stone-800 transition-all shadow-sm"
+          className="flex items-center gap-1.5 bg-stone-900 text-white text-xs font-medium px-3 py-2 rounded-xl hover:bg-stone-800 transition-all shadow-sm shrink-0"
         >
-          <span className="text-base leading-none">+</span>
-          New hypothesis
+          <span>+</span> New
         </button>
       </div>
 
-      {/* Stats bar */}
-      <div className="bg-white border border-stone-100 rounded-2xl p-5 mb-5 flex items-center gap-8">
-        <DonutChart
-          success={stats.success}
-          failed={stats.failed}
-          running={stats.running}
-          total={stats.total}
-        />
-        <div className="flex gap-8 flex-wrap">
-          <div>
-            <div className="text-2xl font-bold text-stone-900">{stats.total}</div>
-            <div className="text-xs text-stone-400">Total</div>
+      {/* Stats bar — compact single row */}
+      <div className="bg-white border border-stone-100 rounded-2xl px-4 py-3 mb-4 flex items-center gap-4">
+        <DonutChart success={stats.success} failed={stats.failed} running={stats.running} total={stats.total} />
+        <div className="flex gap-4 flex-wrap flex-1">
+          <div className="text-center">
+            <div className="text-lg font-bold text-stone-900 leading-tight">{stats.total}</div>
+            <div className="text-[10px] text-stone-400">Total</div>
           </div>
-          <div>
-            <div className="text-2xl font-bold text-amber-600">{stats.running}</div>
-            <div className="text-xs text-stone-400">In progress</div>
+          <div className="text-center">
+            <div className="text-lg font-bold text-amber-600 leading-tight">{stats.running}</div>
+            <div className="text-[10px] text-stone-400">Running</div>
           </div>
-          <div>
-            <div className="text-2xl font-bold text-green-600">{stats.success}</div>
-            <div className="text-xs text-stone-400">Succeeded</div>
+          <div className="text-center">
+            <div className="text-lg font-bold text-green-600 leading-tight">{stats.success}</div>
+            <div className="text-[10px] text-stone-400">Won</div>
           </div>
-          <div>
-            <div className="text-2xl font-bold text-red-500">{stats.failed}</div>
-            <div className="text-xs text-stone-400">Failed</div>
+          <div className="text-center">
+            <div className="text-lg font-bold text-red-500 leading-tight">{stats.failed}</div>
+            <div className="text-[10px] text-stone-400">Lost</div>
           </div>
           {successRate !== null && (
-            <div>
-              <div className="text-2xl font-bold text-stone-900">{successRate}%</div>
-              <div className="text-xs text-stone-400">Success rate</div>
+            <div className="text-center">
+              <div className="text-lg font-bold text-stone-900 leading-tight">{successRate}%</div>
+              <div className="text-[10px] text-stone-400">Win rate</div>
             </div>
           )}
         </div>
       </div>
 
       {/* Filters row */}
-      <div className="flex items-center gap-3 mb-4">
-        <div className="relative flex-1 max-w-xs">
-          <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <div className="flex items-center gap-2 mb-4">
+        <div className="relative flex-1">
+          <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-stone-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z" />
           </svg>
           <input
-            className="w-full pl-9 pr-3 py-2 text-sm border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-stone-900 bg-white"
-            placeholder="Search hypotheses…"
+            className="w-full pl-8 pr-2 py-1.5 text-sm border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-stone-900 bg-white"
+            placeholder="Search…"
             value={search}
             onChange={e => setSearch(e.target.value)}
           />
         </div>
         <select
-          className="text-sm border border-stone-200 rounded-lg px-3 py-2 bg-white focus:outline-none"
+          className="text-xs border border-stone-200 rounded-lg px-2 py-1.5 bg-white focus:outline-none"
           value={filterStatus}
           onChange={e => setFilterStatus(e.target.value)}
         >
-          <option value="">All statuses</option>
+          <option value="">All</option>
           <option value="not_started">Not started</option>
           <option value="in_progress">In progress</option>
           <option value="done">Done</option>
         </select>
         <select
-          className="text-sm border border-stone-200 rounded-lg px-3 py-2 bg-white focus:outline-none"
+          className="text-xs border border-stone-200 rounded-lg px-2 py-1.5 bg-white focus:outline-none"
           value={filterProject}
           onChange={e => setFilterProject(e.target.value)}
         >
           <option value="">All projects</option>
-          {Object.entries(PROJECT_NAMES).map(([id, name]) => (
-            <option key={id} value={id}>{name}</option>
+          {projects.map(p => (
+            <option key={p.id} value={p.id}>{p.name}</option>
           ))}
         </select>
       </div>
@@ -325,7 +276,6 @@ export default function HadiPage() {
         </div>
       )}
 
-      {/* Table */}
       {loading ? (
         <div className="text-sm text-stone-400 py-8 text-center">Loading…</div>
       ) : groups.length === 0 ? (
@@ -336,16 +286,13 @@ export default function HadiPage() {
           </button>
         </div>
       ) : (
-        <div className="space-y-5">
+        <div className="space-y-4">
           {groups.map(([campaign, items]) => (
             <div key={campaign} className="bg-white border border-stone-100 rounded-2xl overflow-hidden">
-              {/* campaign header */}
-              <div className="px-5 py-3 border-b border-stone-100 flex items-center gap-2">
+              <div className="px-4 py-2.5 border-b border-stone-100 flex items-center gap-2">
                 <span className="text-sm font-semibold text-stone-700">{campaign}</span>
                 <span className="text-xs text-stone-400 bg-stone-100 px-2 py-0.5 rounded-full">{items.length}</span>
               </div>
-
-              {/* Mobile cards */}
               <div>
                 {items.map(row => (
                   <HadiCard
@@ -353,6 +300,7 @@ export default function HadiPage() {
                     row={row}
                     onEdit={openEdit}
                     onStatusChange={handleStatusChange}
+                    projectColor={projectColorMap[row.project_id]}
                   />
                 ))}
               </div>
@@ -361,7 +309,6 @@ export default function HadiPage() {
         </div>
       )}
 
-      {/* Slide-out panel */}
       {panelOpen && (
         <HadiPanel
           initial={editing}
