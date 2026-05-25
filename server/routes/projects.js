@@ -35,34 +35,44 @@ router.put('/:id', async (req, res) => {
 router.delete('/:id', async (req, res) => {
   const id = req.params.id;
   try {
-    // Delete in strict dependency order to avoid FK violations regardless of
-    // whether CASCADE is configured on the live DB.
+    // Run everything in a single transaction so any failure is atomic and visible
+    await query('BEGIN');
 
-    // 1. Entries — reference both metrics and periods
+    // 1. Entries (reference metrics and periods)
     await query(`
       DELETE FROM daily_entries
       WHERE metric_id IN (SELECT id FROM metrics WHERE project_id = $1)
          OR period_id  IN (SELECT id FROM periods  WHERE project_id = $1)
     `, [id]);
 
-    // 2. Targets — reference both metrics and periods
+    // 2. Targets via metrics
     await query(`DELETE FROM targets WHERE metric_id IN (SELECT id FROM metrics WHERE project_id = $1)`, [id]);
-    await query(`DELETE FROM targets WHERE period_id  IN (SELECT id FROM periods  WHERE project_id = $1)`, [id]);
 
-    // 3. Metrics
+    // 3. Targets via periods
+    await query(`DELETE FROM targets WHERE period_id IN (SELECT id FROM periods WHERE project_id = $1)`, [id]);
+
+    // 4. Metrics
     await query(`DELETE FROM metrics WHERE project_id = $1`, [id]);
 
-    // 4. Sub-periods first (parent_id FK), then parent periods
+    // 5. Sub-periods (child → parent FK must be removed first)
     await query(`DELETE FROM periods WHERE parent_id IN (SELECT id FROM periods WHERE project_id = $1)`, [id]);
+
+    // 6. Parent periods
     await query(`DELETE FROM periods WHERE project_id = $1`, [id]);
 
-    // 5. Nullify project reference in hypotheses (kept as history)
+    // 7. Hypotheses — keep rows but clear the project reference
     await query(`UPDATE hypotheses SET project_id = NULL WHERE project_id = $1`, [id]);
 
-    // 6. Finally remove the project row
+    // 8. Project row
     await query(`DELETE FROM projects WHERE id = $1`, [id]);
+
+    await query('COMMIT');
     res.status(204).end();
-  } catch (e) { res.status(500).json({ error: e.message }); }
+  } catch (e) {
+    await query('ROLLBACK').catch(() => {});
+    console.error('Project delete failed for id=%s: %s', id, e.message);
+    res.status(500).json({ error: `Delete failed: ${e.message}` });
+  }
 });
 
 export default router;
