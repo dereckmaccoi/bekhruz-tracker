@@ -5,7 +5,6 @@ import Dashboard from './components/Dashboard.jsx';
 import ProjectPage from './components/ProjectPage.jsx';
 import Workshop from './components/Workshop/index.jsx';
 import HadiPage from './components/HadiPage.jsx';
-import MusicPlayer from './components/MusicPlayer.jsx';
 import QuickEntry from './components/QuickEntry.jsx';
 import { api } from './hooks/useApi.js';
 import { LangProvider, useLang } from './i18n/LangContext.jsx';
@@ -39,7 +38,6 @@ function AppInner() {
       </main>
       <BottomNav />
       <QuickEntry />
-      <MusicPlayer />
     </div>
   );
 }
