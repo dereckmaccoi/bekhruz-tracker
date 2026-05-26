@@ -148,6 +148,12 @@ async function runMigrations() {
       console.log(`SEED_HADI=true but ${hRows[0].count} hypotheses already exist — skipping.`);
     }
   }
+
+  // 9. Seed FC Sotuv daily entries for May 2026 — triggered by SEED_FC_MAY=true
+  if (process.env.SEED_FC_MAY === 'true') {
+    await seedFcSotuvMay();
+    console.log('Seeded Full Contact Sotuv entries for May 1–25 2026.');
+  }
 }
 
 async function seedInitialData() {
@@ -311,6 +317,46 @@ async function seedHadiData() {
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)`,
       [pid, hyp, pa, pb, ad, id, 'Bekhruz Rustamjanov',
        result, score, succ, status, insight, campaign]
+    );
+  }
+}
+
+async function seedFcSotuvMay() {
+  // Full Contact — Sotuv daily entries, May 1–25 2026
+  // Periods: h1_may26 (1-7), h2_may26 (8-15), h3_may26 (16-21), h4_may26 (22-31)
+  const entries = [
+    ['2026-05-01', 'h1_may26',  9],
+    ['2026-05-02', 'h1_may26', 13],
+    ['2026-05-03', 'h1_may26',  6],
+    ['2026-05-04', 'h1_may26', 15],
+    ['2026-05-05', 'h1_may26', 13],
+    ['2026-05-06', 'h1_may26', 13],
+    ['2026-05-07', 'h1_may26',  6],
+    ['2026-05-08', 'h2_may26',  7],
+    ['2026-05-09', 'h2_may26',  4],
+    ['2026-05-10', 'h2_may26',  2],
+    ['2026-05-11', 'h2_may26',  6],
+    ['2026-05-12', 'h2_may26',  4],
+    ['2026-05-13', 'h2_may26',  5],
+    ['2026-05-14', 'h2_may26', 14],
+    ['2026-05-15', 'h2_may26',  5],
+    ['2026-05-16', 'h3_may26',  3],
+    ['2026-05-17', 'h3_may26',  2],
+    ['2026-05-18', 'h3_may26', 15],
+    ['2026-05-19', 'h3_may26',  8],
+    ['2026-05-20', 'h3_may26',  5],
+    ['2026-05-21', 'h3_may26', 15],
+    ['2026-05-22', 'h4_may26', 10],
+    ['2026-05-23', 'h4_may26',  3],
+    ['2026-05-24', 'h4_may26',  4],
+    ['2026-05-25', 'h4_may26', 16],
+  ];
+  for (const [date, period_id, value] of entries) {
+    await query(
+      `INSERT INTO daily_entries (metric_id, period_id, date, value)
+       VALUES ('fc_sotuv', $1, $2, $3)
+       ON CONFLICT (metric_id, date) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()`,
+      [period_id, date, value]
     );
   }
 }
