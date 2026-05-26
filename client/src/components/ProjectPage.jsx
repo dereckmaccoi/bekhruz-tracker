@@ -407,7 +407,7 @@ export default function ProjectPage() {
   };
 
   return (
-    <div className="p-6 max-w-3xl mx-auto space-y-6">
+    <div className="px-4 py-4 sm:px-6 sm:py-6 max-w-3xl mx-auto space-y-4 sm:space-y-6">
       {/* Header */}
       <div className="space-y-0">
         {/* Top row: project name + period nav + pace badge */}

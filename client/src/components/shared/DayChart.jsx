@@ -57,8 +57,8 @@ export default function DayChart({ metric, entries, period, weeklyTarget }) {
   const isWeekend = (d) => d.getDay() === 0 || d.getDay() === 6;
 
   return (
-    <div className="flex gap-3">
-      <div className="flex-1">
+    <div className="flex gap-3 min-w-0">
+      <div className="flex-1 min-w-0">
         <div className="flex items-end gap-1 h-32">
           {days.map(d => {
             const key = d.toISOString().slice(0, 10);

@@ -27,7 +27,7 @@ function AppInner() {
           {t('serverOffline')}
         </div>
       )}
-      <main className="flex-1 overflow-y-auto pb-20">
+      <main className="flex-1 overflow-y-auto overflow-x-hidden pb-20">
         <Routes>
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
           <Route path="/dashboard" element={<Dashboard />} />
