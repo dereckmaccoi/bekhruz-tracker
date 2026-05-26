@@ -63,6 +63,17 @@ const ENTRIES = [
 async function run() {
   const client = await pool.connect();
   try {
+    // Ensure all May 2026 periods exist (idempotent)
+    await client.query(`
+      INSERT INTO periods (id, name, start_date, end_date) VALUES
+        ('h1_may26', 'H1', '2026-05-01', '2026-05-07'),
+        ('h2_may26', 'H2', '2026-05-08', '2026-05-15'),
+        ('h3_may26', 'H3', '2026-05-16', '2026-05-21'),
+        ('h4_may26', 'H4', '2026-05-22', '2026-05-31')
+      ON CONFLICT (id) DO NOTHING
+    `);
+    console.log('  ✓  Periods ensured');
+
     let total = 0;
     for (const [date, period_id, value] of ENTRIES) {
       const { rows } = await client.query(
